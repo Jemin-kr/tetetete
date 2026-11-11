@@ -1,0 +1,3778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>오목 수 분석 및 승률 예측 시뮬레이터 Pro (고정 레이아웃 & 8초 심층 탐색)</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-panel: #1e293b;
+      --bg-panel-hover: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --border-color: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html {
+      overflow-y: scroll; /* 스크롤바 유무에 따른 가로 뷰포트 흔들림 방지 */
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 18px 16px 32px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 1180px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ======================================================================
+       1. 상단 헤더 바 (높이 및 버튼 폭 고정으로 레이아웃 시프트 차단)
+       ====================================================================== */
+    .header-bar {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 0 20px;
+      height: 68px;
+      min-height: 68px;
+      max-height: 68px;
+      gap: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    .brand-title-text {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      min-height: 38px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #4b5563, #090d16);
+      border: 2px solid var(--accent-blue);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .brand-logo::after {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .brand-title h1 {
+      font-size: 1.16rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-subtitle {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .controls-group {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .role-selector {
+      display: flex;
+      align-items: center;
+      background: #0f172a;
+      padding: 3px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      flex-shrink: 0;
+    }
+
+    .role-selector span.label {
+      padding: 0 9px;
+      color: var(--text-muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .role-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 0 11px;
+      height: 28px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.81rem;
+      transition: background-color 0.18s ease, color 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .role-btn.active {
+      background: var(--bg-panel-hover);
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+
+    .stone-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .stone-dot.black {
+      background: radial-gradient(circle at 35% 35%, #555, #000);
+      border: 1px solid #64748b;
+    }
+
+    .stone-dot.white {
+      background: radial-gradient(circle at 35% 35%, #fff, #cbd5e1);
+      border: 1px solid #94a3b8;
+    }
+
+    .btn {
+      background: #0f172a;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 0 12px;
+      height: 36px;
+      border-radius: 9px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+    }
+
+    #toggleOverlayBtn {
+      width: 164px;
+    }
+
+    #toggleIndexBtn {
+      width: 142px;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--bg-panel-hover);
+      border-color: #475569;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn.toggle-active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .btn.danger:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.16);
+      border-color: var(--accent-red);
+      color: #fca5a5;
+    }
+
+    /* ======================================================================
+       2. 상단 요약 대시보드 (카드 높이 96px 완전 고정 & 말줄임 처리)
+       ====================================================================== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      height: 96px;
+      min-height: 96px;
+      max-height: 96px;
+    }
+
+    .stat-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 11px 15px;
+      height: 96px;
+      min-height: 96px;
+      max-height: 96px;
+      min-width: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .stat-label {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      height: 18px;
+      line-height: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .stat-label > span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stat-value {
+      font-size: 1.18rem;
+      font-weight: 700;
+      height: 28px;
+      line-height: 28px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-sub {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      height: 18px;
+      line-height: 18px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .winrate-bar-wrapper {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      height: 32px;
+    }
+
+    .winrate-bar {
+      width: 100%;
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      border: 1px solid #475569;
+    }
+
+    .winrate-fill-black {
+      height: 100%;
+      background: linear-gradient(90deg, #1e293b, #38bdf8);
+      transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .winrate-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.76rem;
+      line-height: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ======================================================================
+       3. 메인 워크스페이스 & 바둑판 절대 고정 레이아웃 (1px 흔들림 완벽 차단)
+       ====================================================================== */
+    .main-workspace {
+      display: grid;
+      /* 좌측 바둑판 컬럼은 636px 픽셀 고정, 우측 패널은 minmax(0, 1fr)로 격리 */
+      grid-template-columns: 636px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      width: 100%;
+    }
+
+    .board-container {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 15px 17px;
+      /* 가로 636px (17*2 + 600 + border 2), 세로 744px 절대 고정 */
+      flex: 0 0 636px;
+      flex-shrink: 0;
+      flex-grow: 0;
+      width: 636px;
+      min-width: 636px;
+      max-width: 636px;
+      height: 744px;
+      min-height: 744px;
+      max-height: 744px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    /* 승률 분석 진행 바: 가로 600px × 세로 56px 절대 고정 */
+    .analysis-progress-panel {
+      flex: 0 0 56px;
+      flex-shrink: 0;
+      flex-grow: 0;
+      width: 600px;
+      min-width: 600px;
+      max-width: 600px;
+      height: 56px;
+      min-height: 56px;
+      max-height: 56px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 11px;
+      padding: 9px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      transition: opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .analysis-progress-panel.is-analyzing {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.12);
+    }
+
+    .analysis-progress-panel.is-completed {
+      border-color: rgba(34, 197, 94, 0.55);
+      box-shadow: 0 0 14px rgba(34, 197, 94, 0.1);
+    }
+
+    .analysis-progress-panel.is-disabled {
+      opacity: 0.38;
+      border-color: #1e293b;
+      box-shadow: none;
+      pointer-events: none;
+    }
+
+    .progress-info-row {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      height: 18px;
+      line-height: 18px;
+      overflow: hidden;
+    }
+
+    .progress-status-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1 1 auto;
+      font-size: 0.81rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #progressMainText {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .progress-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+      flex-shrink: 0;
+    }
+
+    .analysis-progress-panel.is-analyzing .progress-dot {
+      background: var(--accent-blue);
+      box-shadow: 0 0 8px var(--accent-blue);
+      animation: pulseAnim 0.55s infinite alternate;
+    }
+
+    .analysis-progress-panel.is-completed .progress-dot {
+      background: var(--accent-green);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.65);
+    }
+
+    .progress-meta-right {
+      flex: 0 0 auto;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .analysis-progress-panel.is-completed .progress-meta-right {
+      color: var(--accent-green);
+    }
+
+    .analysis-progress-panel.is-disabled .progress-meta-right {
+      color: var(--text-muted);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      min-height: 10px;
+      max-height: 10px;
+      background: #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(71, 85, 105, 0.55);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #0284c7 0%, #38bdf8 55%, #22c55e 100%);
+      will-change: width;
+    }
+
+    .analysis-progress-panel.is-completed .progress-fill {
+      background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+    }
+
+    .analysis-progress-panel.is-disabled .progress-fill {
+      background: #475569;
+    }
+
+    @keyframes pulseAnim {
+      from { opacity: 0.45; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1.22); }
+    }
+
+    /* 바둑판 래퍼 및 캔버스: 600px × 600px 픽셀 완전 고정 */
+    .canvas-wrapper {
+      position: relative;
+      flex: 0 0 600px;
+      flex-shrink: 0;
+      flex-grow: 0;
+      width: 600px;
+      height: 600px;
+      min-width: 600px;
+      min-height: 600px;
+      max-width: 600px;
+      max-height: 600px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.4);
+      cursor: crosshair;
+    }
+
+    canvas#gomokuCanvas {
+      display: block;
+      width: 600px;
+      height: 600px;
+      min-width: 600px;
+      min-height: 600px;
+      max-width: 600px;
+      max-height: 600px;
+    }
+
+    .toast-alert {
+      position: absolute;
+      top: 84px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: rgba(220, 38, 38, 0.95);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      z-index: 20;
+      border: 1px solid #fca5a5;
+      white-space: nowrap;
+    }
+
+    .toast-alert.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 바둑판 하단 범례: 가로 600px × 세로 32px 고정 */
+    .board-legend {
+      flex: 0 0 32px;
+      flex-shrink: 0;
+      flex-grow: 0;
+      width: 600px;
+      min-width: 600px;
+      max-width: 600px;
+      height: 32px;
+      min-height: 32px;
+      max-height: 32px;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      overflow: hidden;
+    }
+
+    .legend-items {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      width: 100%;
+      gap: 6px;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .badge-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ======================================================================
+       4. 우측 사이드 패널 (고정 높이 및 내부 텍스트 줄바꿈 격리)
+       ====================================================================== */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+      width: 100%;
+      height: 744px;
+      min-height: 744px;
+      max-height: 744px;
+      justify-content: space-between;
+    }
+
+    .panel-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 13px 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .panel-box.hover-box {
+      height: 222px;
+      min-height: 222px;
+      max-height: 222px;
+      flex: 0 0 222px;
+    }
+
+    .panel-box.topmoves-box {
+      height: 266px;
+      min-height: 266px;
+      max-height: 266px;
+      flex: 0 0 266px;
+    }
+
+    .panel-box.history-box {
+      height: 228px;
+      min-height: 228px;
+      max-height: 228px;
+      flex: 0 0 228px;
+    }
+
+    .panel-title {
+      font-size: 0.91rem;
+      font-weight: 700;
+      height: 26px;
+      min-height: 26px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 7px;
+      gap: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .panel-title .tag {
+      font-size: 0.71rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .hover-analysis-card {
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 12px;
+      height: 158px;
+      min-height: 158px;
+      max-height: 158px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    .hover-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 28px;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .hover-header-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    .coord-badge {
+      font-size: 0.98rem;
+      font-weight: 800;
+      color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 3px 9px;
+      border-radius: 7px;
+      flex-shrink: 0;
+    }
+
+    #hoverPatternText {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .winrate-big {
+      font-size: 1.24rem;
+      font-weight: 800;
+      flex-shrink: 0;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metrics-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      font-size: 0.77rem;
+      height: 66px;
+    }
+
+    .metric-item {
+      background: var(--bg-panel);
+      padding: 0 9px;
+      height: 30px;
+      border-radius: 7px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .metric-item .k {
+      color: var(--text-muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .metric-item .v {
+      font-weight: 700;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .pv-line-box {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px dashed #334155;
+      border-radius: 7px;
+      padding: 0 10px;
+      height: 30px;
+      line-height: 28px;
+      font-size: 0.76rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+
+    .top-moves-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      height: 204px;
+      min-height: 204px;
+      max-height: 204px;
+      overflow: hidden;
+    }
+
+    .move-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      padding: 0 11px;
+      height: 36px;
+      min-height: 36px;
+      max-height: 36px;
+      border-radius: 8px;
+      font-size: 0.81rem;
+      cursor: pointer;
+      gap: 8px;
+      overflow: hidden;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .move-row:hover {
+      border-color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .move-row-left {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .move-rank {
+      font-weight: 800;
+      width: 21px;
+      height: 21px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.73rem;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+
+    .rank-1 {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+
+    .rank-other {
+      background: var(--bg-panel);
+      color: var(--text-muted);
+    }
+
+    .move-reason {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-left: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .move-prob {
+      font-weight: 800;
+      flex-shrink: 0;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-state-fixed {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      padding: 0 8px;
+    }
+
+    .history-list {
+      height: 166px;
+      min-height: 166px;
+      max-height: 166px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-right: 4px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+      height: 30px;
+      min-height: 30px;
+      max-height: 30px;
+      flex-shrink: 0;
+      background: #0f172a;
+      border-radius: 7px;
+      font-size: 0.78rem;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .history-item .left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      flex: 1 1 auto;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .history-item .reason-ellipsis {
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: var(--bg-panel);
+      border: 1px solid #475569;
+      border-radius: 18px;
+      padding: 28px 26px;
+      width: 92%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      transform: translateY(12px);
+      transition: transform 0.22s ease;
+    }
+
+    .modal-backdrop.open .modal-card {
+      transform: translateY(0);
+    }
+
+    .modal-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      margin: 0 auto 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      background: rgba(34, 197, 94, 0.15);
+      border: 2px solid var(--accent-green);
+    }
+
+    .modal-title {
+      font-size: 1.38rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: #0f172a;
+      border: none;
+      font-weight: 700;
+    }
+
+    .btn-primary:hover {
+      background: #7dd3fc !important;
+    }
+
+    /* ======================================================================
+       5. 반응형 격리 규칙
+       - 태블릿 이하(<=1060px)에서도 바둑판은 600px × 600px 픽셀 완전 고정 유지!
+       - 모바일 뷰포트(<=660px)에서만 텍스트와 완전히 무관한 뷰포트 폭(100vw) 기준으로만 정사각형 유지
+       ====================================================================== */
+    @media (max-width: 1060px) {
+      .header-bar {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 108px;
+        max-height: none;
+        padding: 12px 16px;
+      }
+      .controls-group {
+        flex-wrap: wrap;
+      }
+      .dashboard-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        height: 204px;
+        min-height: 204px;
+        max-height: 204px;
+      }
+      .main-workspace {
+        grid-template-columns: 636px;
+        justify-content: center;
+      }
+      .side-panel {
+        width: 636px;
+        max-width: 636px;
+      }
+    }
+
+    @media (max-width: 660px) {
+      body {
+        padding: 12px 10px 24px;
+      }
+      .main-workspace {
+        grid-template-columns: calc(100vw - 20px);
+      }
+      .board-container {
+        width: calc(100vw - 20px);
+        min-width: calc(100vw - 20px);
+        max-width: calc(100vw - 20px);
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        padding: 12px;
+      }
+      .analysis-progress-panel {
+        width: calc(100vw - 46px);
+        min-width: calc(100vw - 46px);
+        max-width: calc(100vw - 46px);
+      }
+      .canvas-wrapper {
+        width: calc(100vw - 46px);
+        height: calc(100vw - 46px);
+        min-width: calc(100vw - 46px);
+        min-height: calc(100vw - 46px);
+        max-width: calc(100vw - 46px);
+        max-height: calc(100vw - 46px);
+        aspect-ratio: 1 / 1;
+      }
+      canvas#gomokuCanvas {
+        width: 100%;
+        height: 100%;
+        min-width: 100%;
+        min-height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+      }
+      .board-legend {
+        width: calc(100vw - 46px);
+        min-width: calc(100vw - 46px);
+        max-width: calc(100vw - 46px);
+      }
+      .side-panel {
+        width: calc(100vw - 20px);
+        max-width: calc(100vw - 20px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 상단 헤더 & 컨트롤 -->
+    <header class="header-bar">
+      <div class="brand-title">
+        <div class="brand-logo"></div>
+        <div class="brand-title-text">
+          <h1>오목 수 분석 및 승률 예측 시뮬레이터 Pro</h1>
+          <div class="brand-subtitle">600×600 고정 보드 · 8.0초 점진적 심층 탐색 (2수→4수→6수→8수+) · 심층 VCF/VCT</div>
+        </div>
+      </div>
+
+      <div class="controls-group">
+        <div class="role-selector" title="선택한 내 진영 차례에만 승률 오버레이와 심층 분석이 활성화됩니다">
+          <span class="label">내 진영</span>
+          <button type="button" class="role-btn active" id="roleBlackBtn">
+            <span class="stone-dot black"></span> 흑 (선공)
+          </button>
+          <button type="button" class="role-btn" id="roleWhiteBtn">
+            <span class="stone-dot white"></span> 백 (후공)
+          </button>
+        </div>
+
+        <button type="button" class="btn toggle-active" id="toggleOverlayBtn">
+          <span>📊 내 턴 오버레이: 켜짐</span>
+        </button>
+
+        <button type="button" class="btn" id="toggleIndexBtn">
+          <span>🔢 수순 번호: 꺼짐</span>
+        </button>
+
+        <button type="button" class="btn" id="undoBtn" disabled>
+          <span>↩ 무르기</span>
+        </button>
+
+        <button type="button" class="btn danger" id="resetBtn">
+          <span>🔄 초기화</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 상단 요약 대시보드 (높이 96px 완전 고정) -->
+    <section class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>현재 착수 턴 (Turn)</span>
+          <span id="ruleBadge" style="color: var(--accent-amber)">흑 금수 적용 중</span>
+        </div>
+        <div class="stat-value" id="currentTurnDisplay">
+          <span class="stone-dot black" style="width: 16px; height: 16px;"></span>
+          <span>흑돌 (Black) 차례</span>
+        </div>
+        <div class="stat-sub" id="userRoleStatus">내 턴: 승률 오버레이 활성화됨</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>진행 수순 & 오프닝</span>
+          <span id="lastMoveCoord">최근 착수: -</span>
+        </div>
+        <div class="stat-value" id="moveCountDisplay">0 수</div>
+        <div class="stat-sub" id="openingNameDisplay">대기 중 (1수 천원 H8 정석)</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>최선책 예상 승률</span>
+          <span id="bestMoveCoordBadge" style="color: var(--accent-green)">추천: H8</span>
+        </div>
+        <div class="stat-value" id="bestMoveWinRateDisplay" style="color: var(--accent-green)">54.5%</div>
+        <div class="stat-sub" id="bestMoveReasonDisplay">프로 기보 통계: 천원 첫수</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>실시간 형세 (흑 vs 백)</span>
+          <span id="forbiddenCountDisplay" style="color: #f87171;">흑 금수: 0곳</span>
+        </div>
+        <div class="winrate-bar-wrapper">
+          <div class="winrate-bar">
+            <div class="winrate-fill-black" id="winrateBarBlack" style="width: 54.5%;"></div>
+          </div>
+          <div class="winrate-labels">
+            <span id="blackOverallRate" style="color: var(--accent-blue)">흑 54.5%</span>
+            <span id="whiteOverallRate" style="color: #e2e8f0">백 45.5%</span>
+          </div>
+        </div>
+        <div class="stat-sub" id="boardEvalSummary">프로 오프닝 북 매핑 & 심층 수읽기</div>
+      </div>
+    </section>
+
+    <!-- 메인 워크스페이스 -->
+    <main class="main-workspace">
+      <!-- 바둑판 컨테이너: 636px × 744px 절대 고정, 내부 캔버스 600px × 600px 절대 고정 -->
+      <div class="board-container">
+        <!-- 바둑판 상단 승률 분석 진행 바 (600px × 56px 고정) -->
+        <div class="analysis-progress-panel is-analyzing" id="analysisProgressPanel">
+          <div class="progress-info-row">
+            <div class="progress-status-left">
+              <span class="progress-dot" id="progressDot"></span>
+              <span id="progressMainText">분석 중: 0.0초 / 8.0초 (탐색 깊이: 2수)</span>
+            </div>
+            <div class="progress-meta-right" id="progressMetaRight">
+              남은 시간: 8.0초 · 0%
+            </div>
+          </div>
+          <div
+            class="progress-track"
+            id="progressTrack"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="toast-alert" id="toastAlert">금수 자리에는 흑돌을 놓을 수 없습니다!</div>
+
+        <div class="canvas-wrapper">
+          <canvas id="gomokuCanvas" width="600" height="600"></canvas>
+        </div>
+
+        <div class="board-legend">
+          <div class="legend-items">
+            <div class="legend-item">
+              <span class="badge-dot" style="background: rgba(239, 68, 68, 0.55);"></span>
+              <span>&lt;30% 빨간점</span>
+            </div>
+            <div class="legend-item">
+              <span class="badge-dot" style="background: rgba(250, 204, 21, 0.58);"></span>
+              <span>30~60% 노랑</span>
+            </div>
+            <div class="legend-item">
+              <span class="badge-dot" style="background: rgba(15, 23, 42, 0.58); border: 1px solid #94a3b8;"></span>
+              <span>60~70% 검정</span>
+            </div>
+            <div class="legend-item">
+              <span class="badge-dot" style="background: rgba(20, 120, 85, 0.58);"></span>
+              <span>70~80% 청록</span>
+            </div>
+            <div class="legend-item">
+              <span class="badge-dot" style="background: rgba(34, 197, 94, 0.58);"></span>
+              <span>80%+ 초록</span>
+            </div>
+            <div class="legend-item">
+              <span style="color: #dc2626; font-weight: 900;">✕</span>
+              <span>금수</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우측 사이드 패널 (각 박스 높이 고정 및 텍스트 오버플로우 차단) -->
+      <aside class="side-panel">
+        <!-- 교차점 심층 수읽기 분석 카드 -->
+        <div class="panel-box hover-box">
+          <div class="panel-title">
+            <span>🎯 교차점 수 분석</span>
+            <span class="tag" id="hoverTurnTag">흑돌 착수 가정</span>
+          </div>
+
+          <div class="hover-analysis-card">
+            <div class="hover-header">
+              <div class="hover-header-left">
+                <span class="coord-badge" id="hoverCoordText">H8</span>
+                <span id="hoverPatternText">프로 오프닝 정석 (천원)</span>
+              </div>
+              <div class="winrate-big" id="hoverWinrateText" style="color: var(--accent-green);">
+                54.5%
+              </div>
+            </div>
+
+            <div class="metrics-list">
+              <div class="metric-item">
+                <span class="k">탐색 출처</span>
+                <span class="v" id="metricSource">Opening Book</span>
+              </div>
+              <div class="metric-item">
+                <span class="k">공수 밸런스</span>
+                <span class="v" id="metricBalance">정석 균형</span>
+              </div>
+              <div class="metric-item">
+                <span class="k">위협(3/4)</span>
+                <span class="v" id="metricThreats">열린3: 0 / 4: 0</span>
+              </div>
+              <div class="metric-item">
+                <span class="k">렌주룰 판정</span>
+                <span class="v" id="metricRenju" style="color: var(--accent-green);">합법수</span>
+              </div>
+            </div>
+
+            <div class="pv-line-box" id="pvLineText">
+              예상 수순(PV): H8 → I9 → G8 → H9 → G7
+            </div>
+          </div>
+        </div>
+
+        <!-- 추천 Top 5 리스트 -->
+        <div class="panel-box topmoves-box">
+          <div class="panel-title">
+            <span>💡 상위 추천 후보수 (Top 5)</span>
+            <span class="tag" id="topMovesSubTag">클릭 시 즉시 착수</span>
+          </div>
+          <div class="top-moves-list" id="topMovesContainer"></div>
+        </div>
+
+        <!-- 착수 히스토리 -->
+        <div class="panel-box history-box">
+          <div class="panel-title">
+            <span>📜 대국 수순 기록 (History)</span>
+            <span class="tag" id="historyCountTag">0 수</span>
+          </div>
+          <div class="history-list" id="historyContainer">
+            <div class="empty-state-fixed">
+              아직 착수된 돌이 없습니다. 바둑판 교차점을 클릭해 대국을 시작하세요.
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- 승리 모달 -->
+  <div class="modal-backdrop" id="winModal">
+    <div class="modal-card">
+      <div class="modal-icon">🏆</div>
+      <div class="modal-title" id="modalTitle">흑돌(Black) 승리!</div>
+      <div class="modal-desc" id="modalDesc">
+        정확히 5목이 완성되어 대국이 종료되었습니다.
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modalCloseBtn">판 분석 계속 보기</button>
+        <button type="button" class="btn btn-primary" id="modalResetBtn">새 대국 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // =========================================================================
+      // 1. 기본 상수 및 전역 게임 상태
+      // =========================================================================
+      const BOARD_SIZE = 15;
+      const FIXED_CANVAS_PX = 600; // 기본 고정 캔버스 픽셀 크기 (600px × 600px)
+      const EMPTY = 0;
+      const BLACK = 1;
+      const WHITE = 2;
+      const BORDER = 3;
+
+      const COL_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"];
+      const DIRECTIONS = [
+        [0, 1],  // 가로
+        [1, 0],  // 세로
+        [1, 1],  // 우하 대각선
+        [1, -1]  // 우상 대각선
+      ];
+      const STAR_POINTS = [
+        [3, 3], [3, 11],
+        [7, 7],
+        [11, 3], [11, 11]
+      ];
+
+      // 8초 심층 탐색 정책 설정
+      const MAX_SEARCH_TIME_MS = 8000;   // 최대 연산 허용 시간 8.0초
+      const CHUNK_BUDGET_MS = 9;         // 비동기 청크당 최대 점유 시간 (~9ms: 60fps UI 보장)
+      const MAX_CORE_CANDIDATES = 14;    // 1~2칸 반경 내 상위 핵심 후보지 가지치기 개수
+      const MAX_TT_ENTRIES = 65000;      // Zobrist 해시 치환표 최대 엔트리
+      const ABORTED = Symbol("ABORTED"); // 시간 초과 및 착수 인터럽트 시 안전한 중단 시그널
+
+      let board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY));
+      let currentTurn = BLACK;       // 항상 흑 선공
+      let userPreferredRole = BLACK; // 플레이어가 선택한 진영 ('내 턴' 오버레이 및 프로그레스 바 기준)
+      let moveHistory = [];
+      let gameOver = false;
+      let winningLine = null;
+      let showOverlay = true;
+      let showMoveNumbers = false;
+      let hoverPos = null;
+
+      // 현재 턴 분석 데이터 및 비동기 탐색 세션 상태
+      let analysisGrid = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+      let topCandidates = [];
+      let currentBoardBlackWinRate = 54.5;
+
+      let searchSessionId = 0;
+      let searchChunkTimer = null;
+      let progressRafId = null;
+      let searchStartTime = 0;
+      let currentSearchDepth = 2;
+      let completedSearchDepth = 2;
+      let totalSearchedNodes = 0;
+      let isSearching = false;
+
+      // 52-bit 안전 정수 기반 Zobrist 해시 테이블 초기화
+      const ZOBRIST_HI = Array.from({ length: 225 }, () => [0, 0, 0]);
+      const ZOBRIST_LO = Array.from({ length: 225 }, () => [0, 0, 0]);
+      {
+        let seed = 0x9e3779b9;
+        const nextRand = () => {
+          seed ^= seed << 13;
+          seed ^= seed >>> 17;
+          seed ^= seed << 5;
+          return seed >>> 0;
+        };
+        for (let idx = 0; idx < 225; idx++) {
+          for (let col = 1; col <= 2; col++) {
+            ZOBRIST_HI[idx][col] = nextRand() & 0x7fffffff;
+            ZOBRIST_LO[idx][col] = nextRand() & 0x1fffff;
+          }
+        }
+      }
+
+      // DOM 요소 참조
+      const canvas = document.getElementById("gomokuCanvas");
+      const ctx = canvas.getContext("2d");
+      const toastAlert = document.getElementById("toastAlert");
+
+      const analysisProgressPanel = document.getElementById("analysisProgressPanel");
+      const progressMainText = document.getElementById("progressMainText");
+      const progressMetaRight = document.getElementById("progressMetaRight");
+      const progressTrack = document.getElementById("progressTrack");
+      const progressFill = document.getElementById("progressFill");
+
+      const roleBlackBtn = document.getElementById("roleBlackBtn");
+      const roleWhiteBtn = document.getElementById("roleWhiteBtn");
+      const toggleOverlayBtn = document.getElementById("toggleOverlayBtn");
+      const toggleIndexBtn = document.getElementById("toggleIndexBtn");
+      const undoBtn = document.getElementById("undoBtn");
+      const resetBtn = document.getElementById("resetBtn");
+
+      const currentTurnDisplay = document.getElementById("currentTurnDisplay");
+      const ruleBadge = document.getElementById("ruleBadge");
+      const userRoleStatus = document.getElementById("userRoleStatus");
+      const moveCountDisplay = document.getElementById("moveCountDisplay");
+      const lastMoveCoord = document.getElementById("lastMoveCoord");
+      const openingNameDisplay = document.getElementById("openingNameDisplay");
+      const forbiddenCountDisplay = document.getElementById("forbiddenCountDisplay");
+      const bestMoveCoordBadge = document.getElementById("bestMoveCoordBadge");
+      const bestMoveWinRateDisplay = document.getElementById("bestMoveWinRateDisplay");
+      const bestMoveReasonDisplay = document.getElementById("bestMoveReasonDisplay");
+      const winrateBarBlack = document.getElementById("winrateBarBlack");
+      const blackOverallRate = document.getElementById("blackOverallRate");
+      const whiteOverallRate = document.getElementById("whiteOverallRate");
+      const boardEvalSummary = document.getElementById("boardEvalSummary");
+
+      const hoverTurnTag = document.getElementById("hoverTurnTag");
+      const hoverCoordText = document.getElementById("hoverCoordText");
+      const hoverPatternText = document.getElementById("hoverPatternText");
+      const hoverWinrateText = document.getElementById("hoverWinrateText");
+      const metricSource = document.getElementById("metricSource");
+      const metricBalance = document.getElementById("metricBalance");
+      const metricThreats = document.getElementById("metricThreats");
+      const metricRenju = document.getElementById("metricRenju");
+      const pvLineText = document.getElementById("pvLineText");
+
+      const topMovesContainer = document.getElementById("topMovesContainer");
+      const topMovesSubTag = document.getElementById("topMovesSubTag");
+      const historyContainer = document.getElementById("historyContainer");
+      const historyCountTag = document.getElementById("historyCountTag");
+
+      const winModal = document.getElementById("winModal");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalDesc = document.getElementById("modalDesc");
+      const modalCloseBtn = document.getElementById("modalCloseBtn");
+      const modalResetBtn = document.getElementById("modalResetBtn");
+
+      let toastTimer = null;
+
+      function inBounds(r, c) {
+        return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+      }
+
+      function toCoord(r, c) {
+        return `${COL_LABELS[c]}${BOARD_SIZE - r}`;
+      }
+
+      function showToast(msg) {
+        toastAlert.textContent = msg;
+        toastAlert.classList.add("show");
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastAlert.classList.remove("show");
+        }, 2200);
+      }
+
+      /**
+       * 바둑판 렌더링과 마우스 클릭/호버 좌표 계산이 100% 동일한 기하학 수치를 공유하도록 통합
+       */
+      function getBoardMetrics() {
+        const rect = canvas.getBoundingClientRect();
+        const W = rect.width > 0 ? rect.width : FIXED_CANVAS_PX;
+        const padding = Math.round(W * 0.068);
+        const gridSpan = W - padding * 2;
+        const cellSize = gridSpan / (BOARD_SIZE - 1);
+        return { rect, W, padding, gridSpan, cellSize };
+      }
+
+      // =========================================================================
+      // 2. 진행 상태 바(Progress Bar) 제어 및 안전한 탐색 중단기
+      // =========================================================================
+      function resetAndDisableProgressBar(reasonText) {
+        analysisProgressPanel.classList.remove("is-analyzing", "is-completed");
+        analysisProgressPanel.classList.add("is-disabled");
+        progressFill.style.width = "0%";
+        progressTrack.setAttribute("aria-valuenow", "0");
+        progressMainText.textContent = reasonText || "분석 대기 중 (상대방 차례 · 내 턴 시작 시 자동 분석)";
+        progressMetaRight.textContent = "비활성화";
+      }
+
+      function markProgressBarCompleted(finalDepth) {
+        analysisProgressPanel.classList.remove("is-analyzing", "is-disabled");
+        analysisProgressPanel.classList.add("is-completed");
+        progressFill.style.width = "100%";
+        progressTrack.setAttribute("aria-valuenow", "100");
+        progressMainText.textContent = `분석 완료: 8.0초 / 8.0초 (탐색 깊이: ${finalDepth}수 확정)`;
+        progressMetaRight.textContent = "남은 시간: 0.0초 · 완료(100%)";
+      }
+
+      function stopActiveSearch() {
+        searchSessionId++;
+        isSearching = false;
+        if (searchChunkTimer !== null) {
+          clearTimeout(searchChunkTimer);
+          searchChunkTimer = null;
+        }
+        if (progressRafId !== null) {
+          cancelAnimationFrame(progressRafId);
+          progressRafId = null;
+        }
+      }
+
+      // =========================================================================
+      // 3. 렌주룰(Renju Rule) 정밀 금수 판정 및 승리 판정
+      // =========================================================================
+      function countContiguous(b, r, c, dr, dc, color) {
+        let count = 1;
+        let nr = r + dr, nc = c + dc;
+        while (inBounds(nr, nc) && b[nr][nc] === color) {
+          count++;
+          nr += dr;
+          nc += dc;
+        }
+        nr = r - dr;
+        nc = c - dc;
+        while (inBounds(nr, nc) && b[nr][nc] === color) {
+          count++;
+          nr -= dr;
+          nc -= dc;
+        }
+        return count;
+      }
+
+      function formsExactFive(b, r, c, color) {
+        for (let i = 0; i < 4; i++) {
+          const [dr, dc] = DIRECTIONS[i];
+          if (countContiguous(b, r, c, dr, dc, color) === 5) return true;
+        }
+        return false;
+      }
+
+      function checkWin(b, r, c, color) {
+        for (const [dr, dc] of DIRECTIONS) {
+          const line = [[r, c]];
+          let nr = r + dr, nc = c + dc;
+          while (inBounds(nr, nc) && b[nr][nc] === color) {
+            line.push([nr, nc]);
+            nr += dr;
+            nc += dc;
+          }
+          nr = r - dr;
+          nc = c - dc;
+          while (inBounds(nr, nc) && b[nr][nc] === color) {
+            line.unshift([nr, nc]);
+            nr -= dr;
+            nc -= dc;
+          }
+          if (color === BLACK && line.length === 5) return line;
+          if (color === WHITE && line.length >= 5) return line;
+        }
+        return null;
+      }
+
+      function analyzeFoursInDirection(b, r, c, dr, dc, color) {
+        const fiveSpots = [];
+        for (let offset = -4; offset <= 4; offset++) {
+          if (offset === 0) continue;
+          const er = r + offset * dr;
+          const ec = c + offset * dc;
+          if (!inBounds(er, ec) || b[er][ec] !== EMPTY) continue;
+
+          b[er][ec] = color;
+          let minStep = 0, maxStep = 0;
+          while (
+            inBounds(r + (maxStep + 1) * dr, c + (maxStep + 1) * dc) &&
+            b[r + (maxStep + 1) * dr][c + (maxStep + 1) * dc] === color
+          ) {
+            maxStep++;
+          }
+          while (
+            inBounds(r + (minStep - 1) * dr, c + (minStep - 1) * dc) &&
+            b[r + (minStep - 1) * dr][c + (minStep - 1) * dc] === color
+          ) {
+            minStep--;
+          }
+          const span = maxStep - minStep + 1;
+          const inc = offset >= minStep && offset <= maxStep;
+          b[er][ec] = EMPTY;
+
+          if (inc && span === 5) {
+            fiveSpots.push(offset);
+          }
+        }
+
+        if (fiveSpots.length === 0) return { fourCount: 0, isOpenFour: false, spots: [] };
+        if (fiveSpots.length === 2 && Math.abs(fiveSpots[0] - fiveSpots[1]) === 5) {
+          return { fourCount: 1, isOpenFour: true, spots: fiveSpots };
+        }
+        return { fourCount: fiveSpots.length, isOpenFour: false, spots: fiveSpots };
+      }
+
+      function isOpenThreeInDirection(b, r, c, dr, dc, color, depth) {
+        const curFour = analyzeFoursInDirection(b, r, c, dr, dc, color);
+        if (curFour.fourCount > 0) return false;
+        if (countContiguous(b, r, c, dr, dc, color) >= 5) return false;
+
+        for (let offset = -3; offset <= 3; offset++) {
+          if (offset === 0) continue;
+          const nr = r + offset * dr;
+          const nc = c + offset * dc;
+          if (!inBounds(nr, nc) || b[nr][nc] !== EMPTY) continue;
+
+          b[nr][nc] = color;
+          const nextFour = analyzeFoursInDirection(b, r, c, dr, dc, color);
+          let ok = nextFour.isOpenFour;
+
+          if (ok && color === BLACK && depth < 1) {
+            b[nr][nc] = EMPTY;
+            if (checkForbiddenMove(b, nr, nc, depth + 1).isForbidden) {
+              ok = false;
+            }
+          } else {
+            b[nr][nc] = EMPTY;
+          }
+          if (ok) return true;
+        }
+        return false;
+      }
+
+      function checkForbiddenMove(b, r, c, depth = 0) {
+        if (b[r][c] !== EMPTY) return { isForbidden: false, type: null };
+
+        let nearbyBlack = 0;
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (inBounds(nr, nc) && b[nr][nc] === BLACK) nearbyBlack++;
+          }
+        }
+        if (nearbyBlack < 2) return { isForbidden: false, type: null };
+
+        b[r][c] = BLACK;
+
+        if (formsExactFive(b, r, c, BLACK)) {
+          b[r][c] = EMPTY;
+          return { isForbidden: false, type: null };
+        }
+
+        for (let i = 0; i < 4; i++) {
+          const [dr, dc] = DIRECTIONS[i];
+          if (countContiguous(b, r, c, dr, dc, BLACK) >= 6) {
+            b[r][c] = EMPTY;
+            return { isForbidden: true, type: "장목(6목+)" };
+          }
+        }
+
+        let totalFours = 0;
+        for (let i = 0; i < 4; i++) {
+          const [dr, dc] = DIRECTIONS[i];
+          totalFours += analyzeFoursInDirection(b, r, c, dr, dc, BLACK).fourCount;
+        }
+        if (totalFours >= 2) {
+          b[r][c] = EMPTY;
+          return { isForbidden: true, type: "4-4 금수" };
+        }
+
+        let totalOpenThrees = 0;
+        for (let i = 0; i < 4; i++) {
+          const [dr, dc] = DIRECTIONS[i];
+          if (isOpenThreeInDirection(b, r, c, dr, dc, BLACK, depth)) {
+            totalOpenThrees++;
+          }
+        }
+        if (totalOpenThrees >= 2) {
+          b[r][c] = EMPTY;
+          return { isForbidden: true, type: "3-3 금수" };
+        }
+
+        b[r][c] = EMPTY;
+        return { isForbidden: false, type: null };
+      }
+
+      // =========================================================================
+      // 4. 프로 오프닝 북 (26대 프로 주형 & 주력 정석 즉시 매핑 테이블)
+      // =========================================================================
+      const DIRECT_26_OPENINGS = {
+        "-2,0":  { name: "한성 (Hanxing, 寒星)", blackWinRate: 51.8 },
+        "-2,1":  { name: "계월 (Xiyue, 溪月)", blackWinRate: 58.4 },
+        "-2,2":  { name: "소성 (Shuxing, 疏星)", blackWinRate: 53.2 },
+        "-1,1":  { name: "화월 (Huayue, 花月)", blackWinRate: 76.5 },
+        "-1,2":  { name: "잔월 (Canyue, 残月)", blackWinRate: 62.1 },
+        "0,1":   { name: "우월 (Yuyue, 雨月)", blackWinRate: 64.8 },
+        "0,2":   { name: "금성 (Jinxing, 金星)", blackWinRate: 59.5 },
+        "1,0":   { name: "송월 (Songyue, 松月)", blackWinRate: 61.2 },
+        "1,1":   { name: "구월 (Qiuyue, 丘月)", blackWinRate: 57.6 },
+        "1,2":   { name: "신월 (Xinyue, 新月)", blackWinRate: 56.0 },
+        "2,0":   { name: "서성 (Ruixing, 瑞星)", blackWinRate: 52.9 },
+        "2,1":   { name: "산월 (Shanyue, 山月)", blackWinRate: 57.1 },
+        "2,2":   { name: "유성 (Youxing, 游星)", blackWinRate: 49.5 }
+      };
+
+      const INDIRECT_26_OPENINGS = {
+        "-2,2":  { name: "장성 (Changxing, 長星)", blackWinRate: 51.4 },
+        "-2,1":  { name: "협월 (Xiayue, 峽月)", blackWinRate: 60.8 },
+        "-2,0":  { name: "항성 (Hengxing, 恒星)", blackWinRate: 58.9 },
+        "-2,-1": { name: "수월 (Shuiyue, 水月)", blackWinRate: 55.4 },
+        "-2,-2": { name: "유성 (Liuxing, 流星)", blackWinRate: 49.8 },
+        "-1,0":  { name: "운월 (Yunyue, 雲月)", blackWinRate: 63.7 },
+        "-1,-1": { name: "포월 (Puyue, 浦月)", blackWinRate: 74.2 },
+        "-1,-2": { name: "람월 (Lanyue, 嵐月)", blackWinRate: 59.2 },
+        "0,-1":  { name: "은월 (Yinyue, 銀月)", blackWinRate: 57.8 },
+        "0,-2":  { name: "명월 (Mingyue, 明月)", blackWinRate: 56.5 },
+        "1,-1":  { name: "경월 (Xieyue, 斜月)", blackWinRate: 61.5 },
+        "1,-2":  { name: "명성 (Mingxing, 明星)", blackWinRate: 55.9 },
+        "2,-2":  { name: "일월 (Riyue, 日月)", blackWinRate: 52.0 }
+      };
+
+      const PRO_BOOK_LINES = [
+        {
+          match3: { type: "direct", dr3: -1, dc3: 1 }, // 화월
+          white4: [
+            { dr: 0, dc: 1, bonus: 4200, winRate: 42.5, note: "화월 프로 정석 4수 최선 방어" },
+            { dr: -2, dc: 0, bonus: 3600, winRate: 40.5, note: "화월 프로 정석 4수 외곽 견제" },
+            { dr: 0, dc: -1, bonus: 3300, winRate: 39.0, note: "화월 프로 정석 4수 역방향 방어" }
+          ],
+          black5: [
+            { dr: 1, dc: 1, bonus: 4600, winRate: 79.5, note: "화월 5수 프로 정석 필승 맥점" },
+            { dr: -2, dc: 2, bonus: 3900, winRate: 74.0, note: "화월 5수 대각선 확장 정석" },
+            { dr: 0, dc: 2, bonus: 3600, winRate: 72.5, note: "화월 5수 양수겸장 맥점" }
+          ]
+        },
+        {
+          match3: { type: "indirect", dr3: -1, dc3: -1 }, // 포월
+          white4: [
+            { dr: -1, dc: 0, bonus: 4400, winRate: 43.5, note: "포월 프로 정석 4수 중앙 필수 차단" },
+            { dr: 0, dc: 1, bonus: 3500, winRate: 40.5, note: "포월 프로 정석 4수 우변 견제" },
+            { dr: -2, dc: -2, bonus: 3200, winRate: 39.2, note: "포월 프로 정석 4수 대각선 봉쇄" }
+          ],
+          black5: [
+            { dr: 1, dc: -1, bonus: 4500, winRate: 76.8, note: "포월 5수 프로 정석 핵심 공격" },
+            { dr: 0, dc: -1, bonus: 4100, winRate: 74.8, note: "포월 5수 중앙 두터움 확보" },
+            { dr: -2, dc: 0, bonus: 3700, winRate: 72.0, note: "포월 5수 상변 연계 정석" }
+          ]
+        },
+        {
+          match3: { type: "indirect", dr3: -1, dc3: 0 }, // 운월
+          white4: [
+            { dr: -1, dc: -1, bonus: 4200, winRate: 45.0, note: "운월 프로 정석 4수 정방향 막기" },
+            { dr: -2, dc: 0, bonus: 3600, winRate: 43.2, note: "운월 프로 정석 4수 상단 견제" }
+          ],
+          black5: [
+            { dr: 0, dc: -1, bonus: 4200, winRate: 69.5, note: "운월 5수 프로 정석 정공법" },
+            { dr: 1, dc: 0, bonus: 3800, winRate: 67.0, note: "운월 5수 하변 확장 정석" }
+          ]
+        },
+        {
+          match3: { type: "direct", dr3: 0, dc3: 1 }, // 우월
+          white4: [
+            { dr: -1, dc: 1, bonus: 4250, winRate: 44.5, note: "우월 프로 정석 4수 급소 방어" },
+            { dr: 1, dc: 0, bonus: 3700, winRate: 42.8, note: "우월 프로 정석 4수 반대편 견제" }
+          ],
+          black5: [
+            { dr: 1, dc: -1, bonus: 4300, winRate: 70.2, note: "우월 5수 프로 정석 주력 변화" },
+            { dr: -1, dc: -1, bonus: 3900, winRate: 67.5, note: "우월 5수 날일자 연계 정석" }
+          ]
+        }
+      ];
+
+      function transformDelta(dr, dc, symIdx) {
+        switch (symIdx) {
+          case 0: return [dr, dc];
+          case 1: return [-dc, dr];
+          case 2: return [-dr, -dc];
+          case 3: return [dc, -dr];
+          case 4: return [dr, -dc];
+          case 5: return [-dr, dc];
+          case 6: return [dc, dr];
+          case 7: return [-dc, -dr];
+        }
+        return [dr, dc];
+      }
+
+      function inverseTransformDelta(dr, dc, symIdx) {
+        for (let r = -4; r <= 4; r++) {
+          for (let c = -4; c <= 4; c++) {
+            const [tr, tc] = transformDelta(r, c, symIdx);
+            if (tr === dr && tc === dc) return [r, c];
+          }
+        }
+        return [dr, dc];
+      }
+
+      function analyzeOpeningBook(history) {
+        const len = history.length;
+        const bookBonusMap = new Map();
+        let openingTitle = "프로 오프닝 정석 탐색";
+
+        if (len === 0) {
+          openingTitle = "대국 시작 전 (1수 천원 H8 정석)";
+          bookBonusMap.set("7,7", {
+            bonus: 9000,
+            bookWinRate: 54.5,
+            note: "프로 렌주 공식 1수 정석 (천원)"
+          });
+          return { openingTitle, bookBonusMap };
+        }
+
+        const m1 = history[0];
+        if (len === 1) {
+          openingTitle = `1수 ${toCoord(m1.r, m1.c)} 착수 (백 2수 주형 선택 차례)`;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nr = m1.r + dr, nc = m1.c + dc;
+              if (!inBounds(nr, nc)) continue;
+              const isDiag = Math.abs(dr) === 1 && Math.abs(dc) === 1;
+              bookBonusMap.set(`${nr},${nc}`, {
+                bonus: isDiag ? 4800 : 4600,
+                bookWinRate: isDiag ? 48.2 : 47.5,
+                note: isDiag ? "프로 정석 2수 (간접 주형 대각선 응수)" : "프로 정석 2수 (직접 주형 직선 응수)"
+              });
+            }
+          }
+          return { openingTitle, bookBonusMap };
+        }
+
+        const m2 = history[1];
+        const dr2 = m2.r - m1.r;
+        const dc2 = m2.c - m1.c;
+        const isDirect2 = Math.abs(dr2) + Math.abs(dc2) === 1;
+        const isIndirect2 = Math.abs(dr2) === 1 && Math.abs(dc2) === 1;
+
+        if (!isDirect2 && !isIndirect2) {
+          openingTitle = "비정형 자유 포석 (변칙 오프닝)";
+          return { openingTitle, bookBonusMap };
+        }
+
+        let baseSym = 0;
+        for (let s = 0; s < 8; s++) {
+          const [tr, tc] = transformDelta(dr2, dc2, s);
+          if (isDirect2 && tr === -1 && tc === 0) { baseSym = s; break; }
+          if (isIndirect2 && tr === -1 && tc === 1) { baseSym = s; break; }
+        }
+
+        if (len === 2) {
+          openingTitle = isDirect2 ? "직접 주형 (흑 3수 13대 주형 선택)" : "간접 주형 (흑 3수 13대 주형 선택)";
+          for (let dr = -2; dr <= 2; dr++) {
+            for (let dc = -2; dc <= 2; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nr = m1.r + dr, nc = m1.c + dc;
+              if (!inBounds(nr, nc) || (nr === m2.r && nc === m2.c)) continue;
+
+              let [ndr, ndc] = transformDelta(dr, dc, baseSym);
+              if (isDirect2 && ndc < 0) ndc = -ndc;
+              if (isIndirect2 && ndr + ndc > 0) {
+                const tmp = ndr; ndr = -ndc; ndc = -tmp;
+              }
+
+              const key = `${ndr},${ndc}`;
+              const table = isDirect2 ? DIRECT_26_OPENINGS : INDIRECT_26_OPENINGS;
+              const entry = table[key];
+              if (entry) {
+                const bonus = Math.round((entry.blackWinRate - 46) * 240);
+                bookBonusMap.set(`${nr},${nc}`, {
+                  bonus: Math.max(900, bonus),
+                  bookWinRate: entry.blackWinRate,
+                  note: `26주형 정석: ${entry.name}`
+                });
+              }
+            }
+          }
+          return { openingTitle, bookBonusMap };
+        }
+
+        const m3 = history[2];
+        const rawDr3 = m3.r - m1.r;
+        const rawDc3 = m3.c - m1.c;
+        let chosenSym = baseSym;
+        let [ndr3, ndc3] = transformDelta(rawDr3, rawDc3, baseSym);
+
+        if (isDirect2 && ndc3 < 0) {
+          ndc3 = -ndc3;
+          for (let s = 0; s < 8; s++) {
+            const [t2r, t2c] = transformDelta(dr2, dc2, s);
+            const [t3r, t3c] = transformDelta(rawDr3, rawDc3, s);
+            if (t2r === -1 && t2c === 0 && t3r === ndr3 && t3c === ndc3) { chosenSym = s; break; }
+          }
+        } else if (isIndirect2 && ndr3 + ndc3 > 0) {
+          const tmp = ndr3; ndr3 = -ndc3; ndc3 = -tmp;
+          for (let s = 0; s < 8; s++) {
+            const [t2r, t2c] = transformDelta(dr2, dc2, s);
+            const [t3r, t3c] = transformDelta(rawDr3, rawDc3, s);
+            if (t2r === -1 && t2c === 1 && t3r === ndr3 && t3c === ndc3) { chosenSym = s; break; }
+          }
+        }
+
+        const key3 = `${ndr3},${ndc3}`;
+        const table = isDirect2 ? DIRECT_26_OPENINGS : INDIRECT_26_OPENINGS;
+        const matchedOpening = table[key3];
+        openingTitle = matchedOpening ? `정석: ${matchedOpening.name}` : "변칙 오프닝 포석";
+
+        if (len === 3 || len === 4) {
+          for (const line of PRO_BOOK_LINES) {
+            const typeMatch =
+              (line.match3.type === "direct" && isDirect2) ||
+              (line.match3.type === "indirect" && isIndirect2);
+            if (typeMatch && line.match3.dr3 === ndr3 && line.match3.dc3 === ndc3) {
+              const movesList = len === 3 ? line.white4 : line.black5;
+              for (const rec of movesList) {
+                const [actualDr, actualDc] = inverseTransformDelta(rec.dr, rec.dc, chosenSym);
+                const rr = m1.r + actualDr;
+                const rc = m1.c + actualDc;
+                if (inBounds(rr, rc)) {
+                  bookBonusMap.set(`${rr},${rc}`, {
+                    bonus: rec.bonus,
+                    bookWinRate: rec.winRate,
+                    note: rec.note
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        return { openingTitle, bookBonusMap };
+      }
+
+      // =========================================================================
+      // 5. 초고속 11칸 슬라이딩 윈도우 패턴 평가기 + 심층 VCF/VCT & Alpha-Beta 엔진
+      // =========================================================================
+      const reusableLine11 = new Int8Array(11);
+
+      function evalDirection11(b, r, c, dr, dc, color) {
+        for (let k = -5; k <= 5; k++) {
+          if (k === 0) {
+            reusableLine11[5] = color;
+            continue;
+          }
+          const nr = r + k * dr;
+          const nc = c + k * dc;
+          reusableLine11[k + 5] = nr >= 0 && nr < 15 && nc >= 0 && nc < 15 ? b[nr][nc] : BORDER;
+        }
+
+        let left = 5;
+        while (left > 0 && reusableLine11[left - 1] === color) left--;
+        let right = 5;
+        while (right < 10 && reusableLine11[right + 1] === color) right++;
+        const contig = right - left + 1;
+
+        if (color === BLACK) {
+          if (contig === 5) return { type: 6, tr: -1, tc: -1 };
+          if (contig >= 6) return { type: -1, tr: -1, tc: -1 };
+        } else {
+          if (contig >= 5) return { type: 6, tr: -1, tc: -1 };
+        }
+
+        let fCnt = 0;
+        let f1 = -1;
+        let f2 = -1;
+        let hasClosed3 = false;
+
+        for (let s = 1; s <= 5; s++) {
+          if (color === BLACK && (reusableLine11[s - 1] === BLACK || reusableLine11[s + 5] === BLACK)) {
+            continue;
+          }
+          let myCnt = 0;
+          let emptyCnt = 0;
+          let lastEmpty = -1;
+          let blocked = false;
+
+          for (let i = s; i < s + 5; i++) {
+            const v = reusableLine11[i];
+            if (v === color) {
+              myCnt++;
+            } else if (v === EMPTY) {
+              emptyCnt++;
+              lastEmpty = i;
+            } else {
+              blocked = true;
+              break;
+            }
+          }
+          if (blocked) continue;
+
+          if (myCnt === 4 && emptyCnt === 1) {
+            if (fCnt === 0) {
+              f1 = lastEmpty;
+              fCnt = 1;
+            } else if (lastEmpty !== f1 && fCnt === 1) {
+              f2 = lastEmpty;
+              fCnt = 2;
+            } else if (lastEmpty !== f1 && lastEmpty !== f2) {
+              fCnt = 3;
+            }
+          } else if (myCnt === 3 && emptyCnt === 2) {
+            hasClosed3 = true;
+          }
+        }
+
+        if (fCnt >= 2) {
+          const step = f1 - 5;
+          if (fCnt === 2 && Math.abs(f2 - f1) === 5) {
+            return { type: 5, tr: r + step * dr, tc: c + step * dc };
+          }
+          if (color === BLACK) {
+            return { type: -1, tr: -1, tc: -1 };
+          }
+          return { type: 5, tr: r + step * dr, tc: c + step * dc };
+        }
+
+        if (fCnt === 1) {
+          const step = f1 - 5;
+          return { type: 4, tr: r + step * dr, tc: c + step * dc };
+        }
+
+        let hasOpen2 = false;
+        for (let p = 2; p <= 5; p++) {
+          if (reusableLine11[p - 1] !== EMPTY || reusableLine11[p + 4] !== EMPTY) continue;
+          if (color === BLACK && (reusableLine11[p - 2] === BLACK || reusableLine11[p + 5] === BLACK)) continue;
+
+          let myCnt = 0;
+          let emptyCnt = 0;
+          let eIdx = -1;
+          let blocked = false;
+          for (let i = p; i < p + 4; i++) {
+            const v = reusableLine11[i];
+            if (v === color) {
+              myCnt++;
+            } else if (v === EMPTY) {
+              emptyCnt++;
+              eIdx = i;
+            } else {
+              blocked = true;
+              break;
+            }
+          }
+          if (blocked) continue;
+
+          if (myCnt === 3 && emptyCnt === 1) {
+            const step = eIdx - 5;
+            return { type: 3, tr: r + step * dr, tc: c + step * dc };
+          }
+          if (myCnt === 2 && emptyCnt === 2) {
+            hasOpen2 = true;
+          }
+        }
+
+        if (hasClosed3) return { type: 2, tr: -1, tc: -1 };
+        if (hasOpen2) return { type: 1, tr: -1, tc: -1 };
+        return { type: 0, tr: -1, tc: -1 };
+      }
+
+      function evaluateSpotFast(b, r, c, color) {
+        let win5 = false;
+        let overline = false;
+        let open4 = 0;
+        let half4 = 0;
+        let open3 = 0;
+        let closed3 = 0;
+        let open2 = 0;
+        let fourThreatR = -1, fourThreatC = -1;
+        let threeThreatR = -1, threeThreatC = -1;
+
+        for (let d = 0; d < 4; d++) {
+          const [dr, dc] = DIRECTIONS[d];
+          const res = evalDirection11(b, r, c, dr, dc, color);
+          if (res.type === 6) {
+            win5 = true;
+          } else if (res.type === -1) {
+            overline = true;
+          } else if (res.type === 5) {
+            open4++;
+            fourThreatR = res.tr;
+            fourThreatC = res.tc;
+          } else if (res.type === 4) {
+            half4++;
+            fourThreatR = res.tr;
+            fourThreatC = res.tc;
+          } else if (res.type === 3) {
+            open3++;
+            threeThreatR = res.tr;
+            threeThreatC = res.tc;
+          } else if (res.type === 2) {
+            closed3++;
+          } else if (res.type === 1) {
+            open2++;
+          }
+        }
+
+        if (color === BLACK && !win5 && (overline || open4 + half4 >= 2 || open3 >= 2)) {
+          return {
+            win5: false,
+            likelyForbidden: true,
+            open4: 0,
+            half4: 0,
+            open3: 0,
+            closed3: 0,
+            open2: 0,
+            score: -50000,
+            tag: "금수 회피",
+            fourThreatR: -1,
+            fourThreatC: -1,
+            threeThreatR: -1,
+            threeThreatC: -1
+          };
+        }
+
+        let conn = 0;
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (inBounds(nr, nc) && b[nr][nc] !== EMPTY) {
+              const dist = Math.max(Math.abs(dr), Math.abs(dc));
+              const w = dist === 1 ? 24 : 8;
+              conn += b[nr][nc] === color ? w * 1.3 : w * 0.85;
+            }
+          }
+        }
+
+        let score = conn;
+        let tag = "세력 확장";
+
+        if (win5) {
+          score += 1000000;
+          tag = "5목 완성 (승리)";
+        } else if (open4 >= 1 || half4 >= 2) {
+          score += 210000 + open4 * 30000 + open3 * 5000;
+          tag = open4 >= 1 ? "열린 4 필승수" : "복수 4 필승수";
+        } else if (half4 >= 1 && open3 >= 1) {
+          score += 155000 + open3 * 5000;
+          tag = "4-3 필승수";
+        } else if (open3 >= 2) {
+          score += 120000;
+          tag = "쌍삼(3-3) 필승 공격";
+        } else if (open3 === 1) {
+          score += 7200 + closed3 * 420 + open2 * 480;
+          tag = "열린 3 선수 공격";
+        } else if (half4 === 1) {
+          score += 5200 + open2 * 420 + closed3 * 340;
+          tag = "4 공격 (외길 추궁)";
+        } else if (open2 >= 2) {
+          score += 2400 + open2 * 400 + closed3 * 240;
+          tag = "복합 열린 2 포석";
+        } else if (open2 === 1 || closed3 >= 1) {
+          score += 950 + open2 * 340 + closed3 * 260;
+          tag = open2 === 1 ? "열린 2 전개" : "3 견제 전개";
+        }
+
+        return {
+          win5,
+          likelyForbidden: false,
+          open4,
+          half4,
+          open3,
+          closed3,
+          open2,
+          score,
+          tag,
+          fourThreatR,
+          fourThreatC,
+          threeThreatR,
+          threeThreatC
+        };
+      }
+
+      function getPrunedCandidates(b, turnColor, maxLimit) {
+        const oppColor = turnColor === BLACK ? WHITE : BLACK;
+        const list = [];
+
+        for (let r = 0; r < BOARD_SIZE; r++) {
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            if (b[r][c] !== EMPTY) continue;
+
+            let near = false;
+            for (let dr = -2; dr <= 2 && !near; dr++) {
+              for (let dc = -2; dc <= 2; dc++) {
+                const nr = r + dr, nc = c + dc;
+                if (inBounds(nr, nc) && b[nr][nc] !== EMPTY) {
+                  near = true;
+                  break;
+                }
+              }
+            }
+            if (!near) continue;
+
+            const myEv = evaluateSpotFast(b, r, c, turnColor);
+            if (myEv.likelyForbidden && turnColor === BLACK && checkForbiddenMove(b, r, c).isForbidden) {
+              continue;
+            }
+            const oppEv = evaluateSpotFast(b, r, c, oppColor);
+            const oppValidScore = oppEv.likelyForbidden ? 0 : oppEv.score;
+            const centerBonus = Math.max(0, 12 - Math.hypot(r - 7, c - 7) * 1.4) * 10;
+
+            let urgency = myEv.score + oppValidScore * 0.95 + centerBonus;
+            if (oppEv.win5) urgency += 650000;
+            else if (!oppEv.likelyForbidden && (oppEv.open4 >= 1 || (oppEv.half4 >= 1 && oppEv.open3 >= 1))) {
+              urgency += 140000;
+            }
+
+            list.push({
+              r,
+              c,
+              orderScore: urgency,
+              myEv,
+              oppEv
+            });
+          }
+        }
+
+        if (list.length === 0) {
+          for (let r = 6; r <= 8; r++) {
+            for (let c = 6; c <= 8; c++) {
+              if (b[r][c] === EMPTY) {
+                const myEv = evaluateSpotFast(b, r, c, turnColor);
+                const oppEv = evaluateSpotFast(b, r, c, oppColor);
+                list.push({
+                  r,
+                  c,
+                  orderScore: 500 - Math.hypot(r - 7, c - 7) * 40,
+                  myEv,
+                  oppEv
+                });
+              }
+            }
+          }
+        }
+
+        list.sort((a, b) => b.orderScore - a.orderScore);
+        return list.slice(0, maxLimit);
+      }
+
+      function evaluateLeafForRoot(b, turnColor, rootColor, ply) {
+        const cands = getPrunedCandidates(b, turnColor, 5);
+        if (cands.length === 0) return 0;
+
+        const top = cands[0];
+        if (top.myEv.win5) {
+          const s = 760000 - ply * 6000;
+          return turnColor === rootColor ? s : -s;
+        }
+
+        let bestMy = 0;
+        let bestOpp = 0;
+        for (let i = 0; i < cands.length; i++) {
+          if (cands[i].myEv.score > bestMy) bestMy = cands[i].myEv.score;
+          if (!cands[i].oppEv.likelyForbidden && cands[i].oppEv.score > bestOpp) {
+            bestOpp = cands[i].oppEv.score;
+          }
+        }
+
+        const sideToMoveVal = bestMy * 0.92 - bestOpp * 0.84;
+        return turnColor === rootColor ? sideToMoveVal : -sideToMoveVal;
+      }
+
+      function* searchVCFGen(b, lastR, lastC, attacker, ply, maxPly, ctxState, pvOut) {
+        if ((++ctxState.nodes & 127) === 0) {
+          const now = performance.now();
+          if (now >= ctxState.deadline || ctxState.session !== searchSessionId) return ABORTED;
+          if (now >= ctxState.sliceEnd) {
+            yield;
+            if (performance.now() >= ctxState.deadline || ctxState.session !== searchSessionId) return ABORTED;
+            ctxState.sliceEnd = performance.now() + CHUNK_BUDGET_MS;
+          }
+        }
+
+        if (ply >= maxPly) return 0;
+
+        const defender = attacker === BLACK ? WHITE : BLACK;
+        const curEv = evaluateSpotFast(b, lastR, lastC, attacker);
+
+        if (curEv.win5) return 260000 - ply * 2500;
+        if (curEv.open4 >= 1 || (attacker === WHITE && curEv.half4 >= 2)) {
+          return 215000 - ply * 2500;
+        }
+
+        if (curEv.half4 >= 1 && curEv.fourThreatR >= 0) {
+          const br = curEv.fourThreatR;
+          const bc = curEv.fourThreatC;
+          if (!inBounds(br, bc) || b[br][bc] !== EMPTY) return 0;
+
+          if (defender === BLACK && checkForbiddenMove(b, br, bc).isForbidden) {
+            if (pvOut) pvOut.push(`${toCoord(br, bc)}(흑금수유도)`);
+            return 205000 - ply * 2500;
+          }
+
+          const isFourThree = curEv.open3 >= 1;
+
+          b[br][bc] = defender;
+          const defEv = evaluateSpotFast(b, br, bc, defender);
+
+          if (defEv.win5 || defEv.open4 >= 1 || (defender === WHITE && defEv.half4 >= 2)) {
+            b[br][bc] = EMPTY;
+            return -155000 + ply * 2500;
+          }
+
+          if (isFourThree && defEv.half4 === 0) {
+            b[br][bc] = EMPTY;
+            if (pvOut) pvOut.push(toCoord(br, bc));
+            return 185000 - ply * 2500;
+          }
+
+          if (defEv.half4 === 1 && defEv.fourThreatR >= 0) {
+            const counterR = defEv.fourThreatR;
+            const counterC = defEv.fourThreatC;
+            let resVal = 0;
+            if (inBounds(counterR, counterC) && b[counterR][counterC] === EMPTY) {
+              if (!(attacker === BLACK && checkForbiddenMove(b, counterR, counterC).isForbidden)) {
+                const counterEv = evaluateSpotFast(b, counterR, counterC, attacker);
+                if (counterEv.win5 || counterEv.open4 >= 1 || counterEv.half4 >= 1 || counterEv.open3 >= 1) {
+                  b[counterR][counterC] = attacker;
+                  const subPV = [];
+                  const sub = yield* searchVCFGen(b, counterR, counterC, attacker, ply + 2, maxPly, ctxState, subPV);
+                  b[counterR][counterC] = EMPTY;
+                  if (sub === ABORTED) {
+                    b[br][bc] = EMPTY;
+                    return ABORTED;
+                  }
+                  if (sub > 0) {
+                    resVal = sub;
+                    if (pvOut) pvOut.push(toCoord(br, bc), toCoord(counterR, counterC), ...subPV);
+                  }
+                }
+              }
+            }
+            b[br][bc] = EMPTY;
+            return resVal;
+          }
+
+          const followUps = [];
+          for (let dr = -3; dr <= 3; dr++) {
+            for (let dc = -3; dc <= 3; dc++) {
+              const nr = lastR + dr, nc = lastC + dc;
+              if (!inBounds(nr, nc) || b[nr][nc] !== EMPTY) continue;
+              const nextEv = evaluateSpotFast(b, nr, nc, attacker);
+              if (nextEv.likelyForbidden) continue;
+              if (
+                nextEv.win5 ||
+                nextEv.open4 >= 1 ||
+                nextEv.half4 >= 1 ||
+                (ply <= 6 && nextEv.open3 >= 1)
+              ) {
+                followUps.push({ r: nr, c: nc, sc: nextEv.score });
+              }
+            }
+          }
+          followUps.sort((a, b2) => b2.sc - a.sc);
+
+          let bestVal = 0;
+          let bestPV = null;
+          const limit = Math.min(6, followUps.length);
+
+          for (let i = 0; i < limit; i++) {
+            const { r: nr, c: nc } = followUps[i];
+            if (attacker === BLACK && checkForbiddenMove(b, nr, nc).isForbidden) continue;
+
+            b[nr][nc] = attacker;
+            const subPV = [];
+            const val = yield* searchVCFGen(b, nr, nc, attacker, ply + 2, maxPly, ctxState, subPV);
+            b[nr][nc] = EMPTY;
+
+            if (val === ABORTED) {
+              b[br][bc] = EMPTY;
+              return ABORTED;
+            }
+            if (val > bestVal) {
+              bestVal = val;
+              bestPV = [toCoord(br, bc), toCoord(nr, nc), ...subPV];
+              if (bestVal >= 165000) break;
+            }
+          }
+
+          b[br][bc] = EMPTY;
+          if (bestPV && pvOut) pvOut.push(...bestPV);
+          return bestVal;
+        }
+
+        if (curEv.open3 >= 1 && curEv.threeThreatR >= 0 && ply <= 8) {
+          if (attacker === WHITE && curEv.open3 >= 2) {
+            return 175000 - ply * 2500;
+          }
+          const br = curEv.threeThreatR;
+          const bc = curEv.threeThreatC;
+          if (inBounds(br, bc) && b[br][bc] === EMPTY) {
+            if (defender === BLACK && checkForbiddenMove(b, br, bc).isForbidden) {
+              if (pvOut) pvOut.push(`${toCoord(br, bc)}(흑금수유도)`);
+              return 170000 - ply * 2500;
+            }
+            b[br][bc] = defender;
+            const defEv = evaluateSpotFast(b, br, bc, defender);
+            if (defEv.win5 || defEv.open4 >= 1 || defEv.half4 >= 1) {
+              b[br][bc] = EMPTY;
+              return 0;
+            }
+
+            let bestVct = 0;
+            let bestVctPV = null;
+            for (let dr = -2; dr <= 2; dr++) {
+              for (let dc = -2; dc <= 2; dc++) {
+                const nr = lastR + dr, nc = lastC + dc;
+                if (!inBounds(nr, nc) || b[nr][nc] !== EMPTY) continue;
+                const nextEv = evaluateSpotFast(b, nr, nc, attacker);
+                if (nextEv.likelyForbidden) continue;
+                if (nextEv.open4 >= 1 || (nextEv.half4 >= 1 && nextEv.open3 >= 1) || nextEv.half4 >= 1) {
+                  if (attacker === BLACK && checkForbiddenMove(b, nr, nc).isForbidden) continue;
+                  b[nr][nc] = attacker;
+                  const subPV = [];
+                  const subVal = yield* searchVCFGen(b, nr, nc, attacker, ply + 2, maxPly, ctxState, subPV);
+                  b[nr][nc] = EMPTY;
+                  if (subVal === ABORTED) {
+                    b[br][bc] = EMPTY;
+                    return ABORTED;
+                  }
+                  if (subVal > bestVct) {
+                    bestVct = subVal;
+                    bestVctPV = [toCoord(br, bc), toCoord(nr, nc), ...subPV];
+                    if (bestVct >= 150000) break;
+                  }
+                }
+              }
+              if (bestVct >= 150000) break;
+            }
+            b[br][bc] = EMPTY;
+            if (bestVctPV && pvOut) pvOut.push(...bestVctPV);
+            return bestVct;
+          }
+        }
+
+        return 0;
+      }
+
+      function* alphaBetaGen(b, ply, maxDepth, beamWidth, alpha, beta, turnColor, rootColor, hHi, hLo, ctxState, pvArr) {
+        if ((++ctxState.nodes & 127) === 0) {
+          const now = performance.now();
+          if (now >= ctxState.deadline || ctxState.session !== searchSessionId) return ABORTED;
+          if (now >= ctxState.sliceEnd) {
+            yield;
+            if (performance.now() >= ctxState.deadline || ctxState.session !== searchSessionId) return ABORTED;
+            ctxState.sliceEnd = performance.now() + CHUNK_BUDGET_MS;
+          }
+        }
+
+        const remDepth = maxDepth - ply;
+        const hashKey = hHi * 2097152 + hLo + (turnColor === BLACK ? 0 : 1);
+        const ttEntry = ctxState.tt.get(hashKey);
+        if (ttEntry && ttEntry.remDepth >= remDepth) {
+          if (ttEntry.flag === 0) {
+            if (pvArr && ttEntry.bestCoord) pvArr.push(ttEntry.bestCoord);
+            return ttEntry.val;
+          }
+          if (ttEntry.flag === 1 && ttEntry.val > alpha) alpha = ttEntry.val;
+          else if (ttEntry.flag === 2 && ttEntry.val < beta) beta = ttEntry.val;
+          if (alpha >= beta) {
+            if (pvArr && ttEntry.bestCoord) pvArr.push(ttEntry.bestCoord);
+            return ttEntry.val;
+          }
+        }
+
+        if (ply >= maxDepth) {
+          return evaluateLeafForRoot(b, turnColor, rootColor, ply);
+        }
+
+        const width = Math.max(4, beamWidth - Math.floor(ply / 2));
+        const cands = getPrunedCandidates(b, turnColor, width);
+        if (cands.length === 0) return 0;
+
+        if (ttEntry && ttEntry.bestCoord) {
+          const idx = cands.findIndex(x => toCoord(x.r, x.c) === ttEntry.bestCoord);
+          if (idx > 0) {
+            const [pvCand] = cands.splice(idx, 1);
+            cands.unshift(pvCand);
+          }
+        }
+
+        const isMax = turnColor === rootColor;
+        const nextColor = turnColor === BLACK ? WHITE : BLACK;
+
+        if (cands[0].myEv.win5) {
+          const cStr = toCoord(cands[0].r, cands[0].c);
+          if (pvArr) pvArr.push(cStr);
+          const winScore = 820000 - ply * 8000;
+          return isMax ? winScore : -winScore;
+        }
+
+        const origAlpha = alpha;
+        const origBeta = beta;
+        let bestVal = isMax ? -Infinity : Infinity;
+        let bestMoveCoord = toCoord(cands[0].r, cands[0].c);
+        let bestChildPV = [];
+
+        for (let i = 0; i < cands.length; i++) {
+          const { r, c } = cands[i];
+          if (turnColor === BLACK && checkForbiddenMove(b, r, c).isForbidden) continue;
+
+          const cellIdx = r * 15 + c;
+          const nextHi = (hHi ^ ZOBRIST_HI[cellIdx][turnColor]) >>> 0;
+          const nextLo = (hLo ^ ZOBRIST_LO[cellIdx][turnColor]) & 0x1fffff;
+
+          const isTactical =
+            cands[i].myEv.open4 >= 1 ||
+            cands[i].myEv.half4 >= 1 ||
+            cands[i].myEv.open3 >= 1 ||
+            cands[i].oppEv.win5;
+          const reducedMaxDepth = i >= 2 && remDepth >= 3 && !isTactical ? maxDepth - 1 : maxDepth;
+
+          b[r][c] = turnColor;
+          const childPV = pvArr ? [] : null;
+          let val = yield* alphaBetaGen(
+            b,
+            ply + 1,
+            reducedMaxDepth,
+            beamWidth,
+            alpha,
+            beta,
+            nextColor,
+            rootColor,
+            nextHi,
+            nextLo,
+            ctxState,
+            childPV
+          );
+
+          if (val !== ABORTED && reducedMaxDepth < maxDepth) {
+            const improves = isMax ? val > alpha : val < beta;
+            if (improves) {
+              if (childPV) childPV.length = 0;
+              val = yield* alphaBetaGen(
+                b,
+                ply + 1,
+                maxDepth,
+                beamWidth,
+                alpha,
+                beta,
+                nextColor,
+                rootColor,
+                nextHi,
+                nextLo,
+                ctxState,
+                childPV
+              );
+            }
+          }
+          b[r][c] = EMPTY;
+
+          if (val === ABORTED) return ABORTED;
+
+          if (isMax) {
+            if (val > bestVal) {
+              bestVal = val;
+              bestMoveCoord = toCoord(r, c);
+              if (childPV) bestChildPV = childPV;
+            }
+            if (bestVal > alpha) alpha = bestVal;
+            if (beta <= alpha) break;
+          } else {
+            if (val < bestVal) {
+              bestVal = val;
+              bestMoveCoord = toCoord(r, c);
+              if (childPV) bestChildPV = childPV;
+            }
+            if (bestVal < beta) beta = bestVal;
+            if (beta <= alpha) break;
+          }
+        }
+
+        if (bestVal === -Infinity || bestVal === Infinity) return 0;
+
+        if (ctxState.tt.size < MAX_TT_ENTRIES) {
+          let flag = 0;
+          if (bestVal <= origAlpha) flag = 2;
+          else if (bestVal >= origBeta) flag = 1;
+          ctxState.tt.set(hashKey, {
+            remDepth,
+            val: bestVal,
+            flag,
+            bestCoord: bestMoveCoord
+          });
+        }
+
+        if (pvArr) pvArr.push(bestMoveCoord, ...bestChildPV);
+        return bestVal;
+      }
+
+      function normalizeProbabilities(candidateList) {
+        if (candidateList.length === 0) return;
+
+        candidateList.sort((a, b) => b.finalScore - a.finalScore);
+        const maxScore = candidateList[0].finalScore;
+        const oppHasImmediateWin = candidateList.some(x => x.oppWin5);
+
+        for (let i = 0; i < candidateList.length; i++) {
+          const item = candidateList[i];
+          let prob;
+
+          if (item.win5) {
+            prob = 99.9;
+          } else if (oppHasImmediateWin && !item.oppWin5) {
+            prob = Math.max(2.0, 12.0 - i * 0.9);
+          } else if (item.finalScore >= 135000) {
+            prob = 86.0 + Math.min(13.5, (item.finalScore - 135000) / 50000);
+          } else if (item.finalScore <= -100000) {
+            prob = Math.max(3.5, 24.0 + item.finalScore / 22000);
+          } else if (item.bookEntry && moveHistory.length < 8 && item.finalScore >= maxScore * 0.68) {
+            const deepDelta = Math.tanh((item.finalScore - item.baseScore) / 18000) * 2.4;
+            prob = item.bookEntry.bookWinRate + deepDelta;
+          } else {
+            const baseTurnAdv = currentTurn === BLACK ? 54.0 : 48.5;
+            const absBoost = Math.tanh(item.finalScore / 16000) * 30;
+            const gap = Math.max(0, maxScore - item.finalScore);
+            const gapPenalty = Math.min(48, (gap / (Math.abs(maxScore) + 1800)) * 52);
+            const rankPenalty = i === 0 ? 0 : Math.min(26, i * 2.8);
+
+            prob = baseTurnAdv + absBoost - gapPenalty - rankPenalty * 0.5;
+          }
+
+          item.winRate = Math.min(99.9, Math.max(0.5, Number(prob.toFixed(1))));
+        }
+
+        topCandidates = candidateList.slice(0, 5);
+        if (topCandidates.length > 0) {
+          const bestRate = topCandidates[0].winRate;
+          currentBoardBlackWinRate =
+            currentTurn === BLACK ? bestRate : Number((100 - bestRate).toFixed(1));
+        }
+      }
+
+      // =========================================================================
+      // 6. 8.0초 점진적 심층 탐색(Iterative Deepening: 2수 -> 4수 -> 6수 -> 8수+) 파이프라인
+      // =========================================================================
+      function* createDeepSearchGenerator(sBoard, coreCandidates, rootColor, rootHi, rootLo, ctxState) {
+        const oppColor = rootColor === BLACK ? WHITE : BLACK;
+        const oppHasImmediateWin = coreCandidates.some(x => x.oppWin5);
+
+        for (let targetDepth = 4; targetDepth <= 20; targetDepth += 2) {
+          if (performance.now() >= ctxState.deadline || ctxState.session !== searchSessionId) {
+            return;
+          }
+
+          currentSearchDepth = targetDepth;
+          const beamWidth = targetDepth <= 6 ? 6 : targetDepth <= 10 ? 6 : 7;
+          const vcfMaxPly = Math.min(18, targetDepth + 8);
+
+          const ordered = [...coreCandidates].sort((a, b) => b.finalScore - a.finalScore);
+
+          for (let i = 0; i < ordered.length; i++) {
+            const item = ordered[i];
+
+            if (item.win5) {
+              item.source = `즉시 5목 (${targetDepth}수 검증)`;
+              continue;
+            }
+            if (oppHasImmediateWin && !item.oppWin5) {
+              item.finalScore = -220000 - i * 1000;
+              item.source = `상대 5목 미방어 (${targetDepth}수)`;
+              continue;
+            }
+
+            const cellIdx = item.r * 15 + item.c;
+            const nextHi = (rootHi ^ ZOBRIST_HI[cellIdx][rootColor]) >>> 0;
+            const nextLo = (rootLo ^ ZOBRIST_LO[cellIdx][rootColor]) & 0x1fffff;
+
+            sBoard[item.r][item.c] = rootColor;
+
+            const myVcfPV = [];
+            const myVcfScore = yield* searchVCFGen(
+              sBoard,
+              item.r,
+              item.c,
+              rootColor,
+              1,
+              vcfMaxPly,
+              ctxState,
+              myVcfPV
+            );
+            if (myVcfScore === ABORTED) {
+              sBoard[item.r][item.c] = EMPTY;
+              return;
+            }
+
+            let oppVcfPenalty = 0;
+            let oppVcfPV = [];
+            if (myVcfScore < 130000 && item.fours === 0) {
+              const oppThreats = getPrunedCandidates(sBoard, oppColor, 3);
+              for (let k = 0; k < oppThreats.length; k++) {
+                const ot = oppThreats[k];
+                if (ot.myEv.win5 || ot.myEv.open4 >= 1 || ot.myEv.half4 >= 1 || ot.myEv.open3 >= 1) {
+                  if (oppColor === BLACK && checkForbiddenMove(sBoard, ot.r, ot.c).isForbidden) continue;
+                  sBoard[ot.r][ot.c] = oppColor;
+                  const tmpPV = [];
+                  const oppVal = yield* searchVCFGen(
+                    sBoard,
+                    ot.r,
+                    ot.c,
+                    oppColor,
+                    2,
+                    Math.min(16, targetDepth + 6),
+                    ctxState,
+                    tmpPV
+                  );
+                  sBoard[ot.r][ot.c] = EMPTY;
+                  if (oppVal === ABORTED) {
+                    sBoard[item.r][item.c] = EMPTY;
+                    return;
+                  }
+                  if (oppVal > oppVcfPenalty) {
+                    oppVcfPenalty = oppVal;
+                    oppVcfPV = [toCoord(ot.r, ot.c), ...tmpPV];
+                    if (oppVcfPenalty >= 165000) break;
+                  }
+                }
+              }
+            }
+
+            const abPV = [toCoord(item.r, item.c)];
+            const abVal = yield* alphaBetaGen(
+              sBoard,
+              1,
+              targetDepth,
+              beamWidth,
+              -Infinity,
+              Infinity,
+              oppColor,
+              rootColor,
+              nextHi,
+              nextLo,
+              ctxState,
+              abPV
+            );
+            sBoard[item.r][item.c] = EMPTY;
+
+            if (abVal === ABORTED) {
+              return;
+            }
+
+            const bookPrior = item.bookEntry ? item.bookEntry.bonus : 0;
+            let combined = item.baseScore * 0.45 + (abVal + bookPrior) * 0.55;
+            if (myVcfScore >= 120000) {
+              combined = Math.max(combined, myVcfScore);
+              item.reason = myVcfScore >= 180000 ? `VCF 연속 4 필승 (${vcfMaxPly}수 추적)` : `VCT 연속 위협 우세`;
+              item.source = `심층 ${targetDepth}수 + VCF(${vcfMaxPly}수)`;
+              item.pvLine = [toCoord(item.r, item.c), ...myVcfPV].slice(0, 9);
+            } else if (oppVcfPenalty >= 130000) {
+              combined = Math.min(combined, -oppVcfPenalty * 0.92);
+              item.reason = "상대 VCF/VCT 필승 허용 위험";
+              item.source = `수비위험 감지 (${targetDepth}수+VCF)`;
+              item.pvLine = [toCoord(item.r, item.c), ...oppVcfPV].slice(0, 9);
+            } else {
+              if (!item.bookEntry) {
+                item.source = `심층 ${targetDepth}수 탐색`;
+              } else {
+                item.source = `Opening Book + ${targetDepth}수 검증`;
+              }
+              if (abPV.length > 1) {
+                item.pvLine = abPV.slice(0, 9);
+              }
+            }
+
+            item.finalScore = combined;
+            totalSearchedNodes = ctxState.nodes;
+
+            if (myVcfScore >= 120000 || oppVcfPenalty >= 130000 || (i + 1) % 3 === 0) {
+              normalizeProbabilities(coreCandidates);
+              updateLiveOutputsOnly();
+              renderBoard();
+            }
+          }
+
+          completedSearchDepth = targetDepth;
+          normalizeProbabilities(coreCandidates);
+          updateUI();
+          renderBoard();
+
+          yield;
+        }
+      }
+
+      function updateLiveOutputsOnly() {
+        const isMyTurn = currentTurn === userPreferredRole;
+        if (isMyTurn && topCandidates.length > 0 && !gameOver) {
+          const best = topCandidates[0];
+          bestMoveCoordBadge.textContent = `추천: ${toCoord(best.r, best.c)}`;
+          bestMoveWinRateDisplay.textContent = `${best.winRate.toFixed(1)}%`;
+          bestMoveReasonDisplay.textContent = best.reason;
+        }
+        const bRate = Math.min(99.9, Math.max(0.1, currentBoardBlackWinRate));
+        const wRate = Number((100 - bRate).toFixed(1));
+        winrateBarBlack.style.width = `${bRate}%`;
+        blackOverallRate.textContent = `흑 ${bRate.toFixed(1)}%`;
+        whiteOverallRate.textContent = `백 ${wRate.toFixed(1)}%`;
+
+        if (hoverPos) {
+          updateHoverPanel(hoverPos.r, hoverPos.c);
+        } else if (topCandidates.length > 0) {
+          updateHoverPanel(topCandidates[0].r, topCandidates[0].c);
+        }
+      }
+
+      function runEvaluationPipeline() {
+        stopActiveSearch();
+
+        if (gameOver) {
+          resetAndDisableProgressBar("대국 종료 (승률 분석 대기 상태)");
+          updateUI();
+          renderBoard();
+          return;
+        }
+
+        const mySession = searchSessionId;
+        const oppColor = currentTurn === BLACK ? WHITE : BLACK;
+        const isFirstMove = moveHistory.length === 0;
+        const isMyTurn = currentTurn === userPreferredRole;
+
+        const { openingTitle, bookBonusMap } = analyzeOpeningBook(moveHistory);
+        openingNameDisplay.textContent = openingTitle;
+
+        analysisGrid = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+        const allValidWithin2 = [];
+        let forbiddenCount = 0;
+
+        for (let r = 0; r < BOARD_SIZE; r++) {
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            if (board[r][c] !== EMPTY) continue;
+
+            let within2 = isFirstMove ? (r >= 6 && r <= 8 && c >= 6 && c <= 8) : false;
+            if (!isFirstMove) {
+              for (let dr = -2; dr <= 2 && !within2; dr++) {
+                for (let dc = -2; dc <= 2; dc++) {
+                  const nr = r + dr, nc = c + dc;
+                  if (inBounds(nr, nc) && board[nr][nc] !== EMPTY) {
+                    within2 = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (!within2 && !bookBonusMap.has(`${r},${c}`)) continue;
+
+            if (currentTurn === BLACK) {
+              const forb = checkForbiddenMove(board, r, c);
+              if (forb.isForbidden) {
+                forbiddenCount++;
+                analysisGrid[r][c] = {
+                  r,
+                  c,
+                  isForbidden: true,
+                  forbiddenType: forb.type,
+                  winRate: 0,
+                  isCandidate: true,
+                  source: "Renju Rule",
+                  balanceLabel: "착수 불가",
+                  openThrees: 0,
+                  fours: 0,
+                  reason: forb.type,
+                  pvLine: [`${toCoord(r, c)} (${forb.type})`]
+                };
+                continue;
+              }
+            }
+
+            const myEv = evaluateSpotFast(board, r, c, currentTurn);
+            const oppForb = oppColor === BLACK && checkForbiddenMove(board, r, c).isForbidden;
+            const oppEv = oppForb
+              ? { win5: false, open4: 0, half4: 0, open3: 0, closed3: 0, open2: 0, score: 0, tag: "상대 금수" }
+              : evaluateSpotFast(board, r, c, oppColor);
+
+            const bookEntry = bookBonusMap.get(`${r},${c}`) || null;
+            const bookBonus = bookEntry ? bookEntry.bonus : 0;
+            const centerBonus = Math.max(0, 14 - Math.hypot(r - 7, c - 7) * 1.5) * 18;
+
+            let defenseScore = oppEv.score * 0.95;
+            let defenseTag = "수비 안정";
+            if (oppEv.win5) {
+              defenseScore = 750000;
+              defenseTag = "상대 5목 절대 방어";
+            } else if (oppEv.open4 >= 1 || oppEv.half4 >= 2) {
+              defenseScore = 165000;
+              defenseTag = "상대 4 위협 차단";
+            } else if (oppEv.half4 >= 1 && oppEv.open3 >= 1) {
+              defenseScore = 115000;
+              defenseTag = "상대 4-3 핵심 방어";
+            } else if (oppEv.open3 >= 1) {
+              defenseScore = 14000;
+              defenseTag = "상대 열린 3 차단";
+            }
+
+            const stage1Score = myEv.score + defenseScore + bookBonus + centerBonus;
+
+            let reason = myEv.tag;
+            if (bookEntry) reason = bookEntry.note;
+            else if (myEv.win5) reason = "5목 완성 (즉시 승리)";
+            else if (oppEv.win5) reason = "상대 5목 저지 (필수 방어)";
+            else if (defenseScore > myEv.score && defenseScore >= 9000) reason = defenseTag;
+
+            const item = {
+              r,
+              c,
+              isForbidden: false,
+              forbiddenType: null,
+              baseScore: stage1Score,
+              finalScore: stage1Score,
+              win5: myEv.win5,
+              oppWin5: oppEv.win5,
+              bookEntry,
+              source: bookEntry ? "Opening Book (즉시 매핑)" : "심층 2수 (초기 스캔)",
+              balanceLabel: myEv.score >= defenseScore ? `공격 (${myEv.tag})` : `방어 (${defenseTag})`,
+              openThrees: myEv.open3,
+              fours: myEv.open4 + myEv.half4,
+              reason,
+              isCandidate: false,
+              winRate: 50.0,
+              pvLine: [toCoord(r, c)]
+            };
+
+            analysisGrid[r][c] = item;
+            allValidWithin2.push(item);
+          }
+        }
+
+        forbiddenCountDisplay.textContent = `흑 금수: ${forbiddenCount}곳`;
+
+        allValidWithin2.sort((a, b) => b.baseScore - a.baseScore);
+        const coreCandidates = allValidWithin2.slice(0, MAX_CORE_CANDIDATES);
+        for (const cand of coreCandidates) {
+          cand.isCandidate = true;
+        }
+
+        currentSearchDepth = 2;
+        completedSearchDepth = 2;
+        totalSearchedNodes = allValidWithin2.length;
+        normalizeProbabilities(coreCandidates);
+
+        if (!isMyTurn) {
+          resetAndDisableProgressBar("분석 대기 중 (상대방 차례 · 내 턴 시작 시 8.0초 심층 분석)");
+          updateUI();
+          renderBoard();
+          return;
+        }
+
+        updateUI();
+        renderBoard();
+
+        if (coreCandidates.length === 0) {
+          markProgressBarCompleted(2);
+          return;
+        }
+
+        isSearching = true;
+        searchStartTime = performance.now();
+        const hardDeadline = searchStartTime + MAX_SEARCH_TIME_MS;
+
+        analysisProgressPanel.classList.remove("is-completed", "is-disabled");
+        analysisProgressPanel.classList.add("is-analyzing");
+        progressFill.style.width = "0%";
+        progressTrack.setAttribute("aria-valuenow", "0");
+        progressMainText.textContent = `분석 중: 0.0초 / 8.0초 (탐색 깊이: 2수)`;
+        progressMetaRight.textContent = `남은 시간: 8.0초 · 0%`;
+
+        const sBoard = board.map(row => row.slice());
+        let rootHi = 0;
+        let rootLo = 0;
+        for (let r = 0; r < BOARD_SIZE; r++) {
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            const v = sBoard[r][c];
+            if (v !== EMPTY) {
+              const idx = r * 15 + c;
+              rootHi = (rootHi ^ ZOBRIST_HI[idx][v]) >>> 0;
+              rootLo = (rootLo ^ ZOBRIST_LO[idx][v]) & 0x1fffff;
+            }
+          }
+        }
+
+        const ctxState = {
+          session: mySession,
+          deadline: hardDeadline,
+          sliceEnd: performance.now() + CHUNK_BUDGET_MS,
+          nodes: 0,
+          tt: new Map()
+        };
+
+        const searchGen = createDeepSearchGenerator(
+          sBoard,
+          coreCandidates,
+          currentTurn,
+          rootHi,
+          rootLo,
+          ctxState
+        );
+
+        function finalizeSearchSession() {
+          if (mySession !== searchSessionId) return;
+          stopActiveSearch();
+          normalizeProbabilities(coreCandidates);
+          markProgressBarCompleted(completedSearchDepth);
+          updateUI();
+          renderBoard();
+        }
+
+        function tickProgressBar() {
+          if (!isSearching || mySession !== searchSessionId) return;
+
+          const now = performance.now();
+          const elapsedMs = Math.min(MAX_SEARCH_TIME_MS, Math.max(0, now - searchStartTime));
+          const remainMs = Math.max(0, MAX_SEARCH_TIME_MS - elapsedMs);
+          const pct = (elapsedMs / MAX_SEARCH_TIME_MS) * 100;
+
+          progressFill.style.width = `${pct.toFixed(2)}%`;
+          progressTrack.setAttribute("aria-valuenow", String(Math.round(pct)));
+          progressMainText.textContent = `분석 중: ${(elapsedMs / 1000).toFixed(1)}초 / 8.0초 (탐색 깊이: ${currentSearchDepth}수)`;
+          progressMetaRight.textContent = `남은 시간: ${(remainMs / 1000).toFixed(1)}초 · ${Math.round(pct)}%`;
+
+          if (elapsedMs >= MAX_SEARCH_TIME_MS) {
+            finalizeSearchSession();
+            return;
+          }
+
+          progressRafId = requestAnimationFrame(tickProgressBar);
+        }
+        progressRafId = requestAnimationFrame(tickProgressBar);
+
+        function stepSearchChunk() {
+          if (!isSearching || mySession !== searchSessionId) return;
+
+          const now = performance.now();
+          if (now >= hardDeadline) {
+            finalizeSearchSession();
+            return;
+          }
+
+          ctxState.sliceEnd = now + CHUNK_BUDGET_MS;
+          const res = searchGen.next();
+
+          if (mySession !== searchSessionId) return;
+
+          if (res.done || performance.now() >= hardDeadline) {
+            finalizeSearchSession();
+            return;
+          }
+
+          searchChunkTimer = setTimeout(stepSearchChunk, 0);
+        }
+
+        searchChunkTimer = setTimeout(stepSearchChunk, 0);
+      }
+
+      // =========================================================================
+      // 7. 바둑판 및 승률 오버레이 렌더링 (고정 픽셀 & DPI 동기화)
+      // =========================================================================
+      function renderBoard() {
+        const dpr = window.devicePixelRatio || 1;
+        const { W, padding, cellSize } = getBoardMetrics();
+        const targetPixelSize = Math.round(W * dpr);
+
+        if (canvas.width !== targetPixelSize || canvas.height !== targetPixelSize) {
+          canvas.width = targetPixelSize;
+          canvas.height = targetPixelSize;
+        }
+
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // 1. 바둑판 나무 질감 배경
+        const woodGrad = ctx.createLinearGradient(0, 0, W, W);
+        woodGrad.addColorStop(0, "#e3bc68");
+        woodGrad.addColorStop(0.5, "#d8ae54");
+        woodGrad.addColorStop(1, "#c79a3f");
+        ctx.fillStyle = woodGrad;
+        ctx.fillRect(0, 0, W, W);
+
+        ctx.strokeStyle = "rgba(110, 72, 15, 0.06)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < W; i += 9) {
+          ctx.beginPath();
+          ctx.moveTo(0, i);
+          ctx.lineTo(W, i + 12);
+          ctx.stroke();
+        }
+
+        // 2. 격자선
+        ctx.strokeStyle = "#3b2810";
+        for (let i = 0; i < BOARD_SIZE; i++) {
+          const pos = padding + i * cellSize;
+          ctx.lineWidth = i === 0 || i === BOARD_SIZE - 1 ? 1.8 : 1.05;
+
+          ctx.beginPath();
+          ctx.moveTo(padding, pos);
+          ctx.lineTo(W - padding, pos);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(pos, padding);
+          ctx.lineTo(pos, W - padding);
+          ctx.stroke();
+        }
+
+        // 3. 좌표 라벨
+        ctx.fillStyle = "#3b2810";
+        ctx.font = `700 ${Math.max(10, Math.round(cellSize * 0.29))}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let i = 0; i < BOARD_SIZE; i++) {
+          const x = padding + i * cellSize;
+          const y = padding + i * cellSize;
+          ctx.fillText(COL_LABELS[i], x, padding * 0.42);
+          ctx.fillText(COL_LABELS[i], x, W - padding * 0.42);
+          const rowLabel = String(BOARD_SIZE - i);
+          ctx.fillText(rowLabel, padding * 0.42, y);
+          ctx.fillText(rowLabel, W - padding * 0.42, y);
+        }
+
+        // 4. 화점 (5곳)
+        for (const [sr, sc] of STAR_POINTS) {
+          const sx = padding + sc * cellSize;
+          const sy = padding + sr * cellSize;
+          ctx.fillStyle = "#291b0a";
+          ctx.beginPath();
+          ctx.arc(sx, sy, Math.max(3.2, cellSize * 0.1), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 5. 승률 오버레이 & 렌주룰 금수 마크 (내 턴 한정 표시)
+        const isMyTurn = currentTurn === userPreferredRole;
+
+        if (!gameOver) {
+          for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+              if (board[r][c] !== EMPTY) continue;
+              const info = analysisGrid[r]?.[c];
+              if (!info) continue;
+
+              const cx = padding + c * cellSize;
+              const cy = padding + r * cellSize;
+              const isHovered = hoverPos && hoverPos.r === r && hoverPos.c === c;
+
+              if (info.isForbidden) {
+                ctx.save();
+                ctx.globalAlpha = isHovered ? 0.82 : 0.56;
+                const d = cellSize * (isHovered ? 0.22 : 0.17);
+
+                ctx.strokeStyle = "#dc2626";
+                ctx.lineWidth = isHovered ? 3.0 : 2.3;
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.moveTo(cx - d, cy - d);
+                ctx.lineTo(cx + d, cy + d);
+                ctx.moveTo(cx + d, cy - d);
+                ctx.lineTo(cx - d, cy + d);
+                ctx.stroke();
+
+                if (isHovered) {
+                  ctx.fillStyle = "#991b1b";
+                  ctx.font = `800 ${Math.max(9, Math.round(cellSize * 0.21))}px sans-serif`;
+                  ctx.fillText("금수", cx, cy + d + cellSize * 0.19);
+                }
+                ctx.restore();
+                continue;
+              }
+
+              if (!isMyTurn) {
+                if (isHovered) {
+                  ctx.save();
+                  ctx.globalAlpha = 0.5;
+                  ctx.strokeStyle = currentTurn === BLACK ? "#0f172a" : "#ffffff";
+                  ctx.lineWidth = 1.8;
+                  ctx.beginPath();
+                  ctx.arc(cx, cy, cellSize * 0.34, 0, Math.PI * 2);
+                  ctx.stroke();
+                  ctx.restore();
+                }
+                continue;
+              }
+
+              if ((showOverlay && info.isCandidate) || isHovered) {
+                const rate = info.winRate;
+                ctx.save();
+                ctx.globalAlpha = isHovered ? 0.72 : 0.55;
+
+                let dotColor = "#dc2626";
+                let showRateText = false;
+                let darkDot = false;
+
+                if (rate < 30) {
+                  dotColor = "#dc2626";
+                  showRateText = false;
+                } else if (rate < 60) {
+                  dotColor = "#eab308";
+                  showRateText = true;
+                } else if (rate < 70) {
+                  dotColor = "#0f172a";
+                  showRateText = true;
+                  darkDot = true;
+                } else if (rate < 80) {
+                  dotColor = "#0f766e";
+                  showRateText = true;
+                } else {
+                  dotColor = "#16a34a";
+                  showRateText = true;
+                }
+
+                const dotRadius = cellSize * (rate < 30 ? 0.12 : isHovered ? 0.18 : 0.145);
+
+                ctx.fillStyle = dotColor;
+                ctx.beginPath();
+                ctx.arc(cx, cy, dotRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = darkDot ? "rgba(255,255,255,0.45)" : "rgba(15, 23, 42, 0.4)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                if (showRateText) {
+                  const textY = cy + dotRadius + cellSize * 0.185;
+                  const rateLabel = `${Math.round(rate)}%`;
+                  ctx.font = `800 ${Math.max(9, Math.round(cellSize * 0.21))}px sans-serif`;
+
+                  ctx.strokeStyle = "rgba(235, 198, 118, 0.82)";
+                  ctx.lineWidth = 2.2;
+                  ctx.strokeText(rateLabel, cx, textY);
+
+                  ctx.fillStyle = "#1e1b18";
+                  ctx.fillText(rateLabel, cx, textY);
+                }
+
+                ctx.restore();
+              }
+            }
+          }
+        }
+
+        // 6. 착수된 흑/백 돌 렌더링
+        const stoneRadius = cellSize * 0.45;
+        for (let i = 0; i < moveHistory.length; i++) {
+          const mv = moveHistory[i];
+          const cx = padding + mv.c * cellSize;
+          const cy = padding + mv.r * cellSize;
+
+          ctx.save();
+          ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+          ctx.shadowBlur = 5;
+          ctx.shadowOffsetX = 1.5;
+          ctx.shadowOffsetY = 2;
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, stoneRadius, 0, Math.PI * 2);
+
+          if (mv.color === BLACK) {
+            const grad = ctx.createRadialGradient(
+              cx - stoneRadius * 0.32,
+              cy - stoneRadius * 0.32,
+              stoneRadius * 0.1,
+              cx,
+              cy,
+              stoneRadius
+            );
+            grad.addColorStop(0, "#52525b");
+            grad.addColorStop(0.35, "#18181b");
+            grad.addColorStop(1, "#09090b");
+            ctx.fillStyle = grad;
+          } else {
+            const grad = ctx.createRadialGradient(
+              cx - stoneRadius * 0.3,
+              cy - stoneRadius * 0.3,
+              stoneRadius * 0.1,
+              cx,
+              cy,
+              stoneRadius
+            );
+            grad.addColorStop(0, "#ffffff");
+            grad.addColorStop(0.7, "#f1f5f9");
+            grad.addColorStop(1, "#cbd5e1");
+            ctx.fillStyle = grad;
+          }
+          ctx.fill();
+          ctx.restore();
+
+          if (showMoveNumbers) {
+            ctx.fillStyle = mv.color === BLACK ? "#f8fafc" : "#0f172a";
+            ctx.font = `700 ${Math.max(9, Math.round(cellSize * 0.27))}px sans-serif`;
+            ctx.fillText(String(mv.moveNum), cx, cy + 0.5);
+          }
+        }
+
+        // 7. 마지막 착수 돌 강조 표시
+        if (moveHistory.length > 0) {
+          const last = moveHistory[moveHistory.length - 1];
+          const lx = padding + last.c * cellSize;
+          const ly = padding + last.r * cellSize;
+
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.arc(lx, ly, stoneRadius * 0.92, 0, Math.PI * 2);
+          ctx.stroke();
+
+          if (!showMoveNumbers) {
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(lx, ly, Math.max(3.5, cellSize * 0.12), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // 8. 5목 승리 라인
+        if (winningLine && winningLine.length >= 5) {
+          const [r1, c1] = winningLine[0];
+          const [r2, c2] = winningLine[winningLine.length - 1];
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.92)";
+          ctx.lineWidth = 5;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(padding + c1 * cellSize, padding + r1 * cellSize);
+          ctx.lineTo(padding + c2 * cellSize, padding + r2 * cellSize);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      // =========================================================================
+      // 8. 대시보드 및 우측 패널 UI 업데이트
+      // =========================================================================
+      function updateUI() {
+        const isMyTurn = currentTurn === userPreferredRole;
+        const myRoleName = userPreferredRole === BLACK ? "흑(선공)" : "백(후공)";
+
+        if (currentTurn === BLACK) {
+          currentTurnDisplay.innerHTML = `
+            <span class="stone-dot black" style="width: 16px; height: 16px;"></span>
+            <span>흑돌 (Black) 차례</span>
+          `;
+          ruleBadge.textContent = "렌주룰 금수 적용 중";
+          ruleBadge.style.color = "var(--accent-amber)";
+          hoverTurnTag.textContent = "흑돌 착수 가정";
+        } else {
+          currentTurnDisplay.innerHTML = `
+            <span class="stone-dot white" style="width: 16px; height: 16px;"></span>
+            <span>백돌 (White) 차례</span>
+          `;
+          ruleBadge.textContent = "백돌 금수 제약 없음";
+          ruleBadge.style.color = "var(--accent-blue)";
+          hoverTurnTag.textContent = "백돌 착수 가정";
+        }
+
+        if (isMyTurn) {
+          userRoleStatus.textContent = `내 진영(${myRoleName}) 차례 · 승률 오버레이 표시 중`;
+          userRoleStatus.style.color = "var(--accent-green)";
+        } else {
+          userRoleStatus.textContent = `상대방 차례 · 오버레이 숨김 (내 진영: ${myRoleName})`;
+          userRoleStatus.style.color = "var(--text-muted)";
+        }
+
+        moveCountDisplay.textContent = `${moveHistory.length} 수`;
+        historyCountTag.textContent = `${moveHistory.length} 수`;
+        undoBtn.disabled = moveHistory.length === 0;
+
+        if (moveHistory.length > 0) {
+          const last = moveHistory[moveHistory.length - 1];
+          lastMoveCoord.textContent = `최근: ${last.color === BLACK ? "흑" : "백"} ${toCoord(last.r, last.c)}`;
+        } else {
+          lastMoveCoord.textContent = "최근 착수: -";
+        }
+
+        if (gameOver) {
+          bestMoveCoordBadge.textContent = "대국 종료";
+          bestMoveWinRateDisplay.textContent = "100%";
+          bestMoveReasonDisplay.textContent = "승패가 결정되었습니다";
+        } else if (!isMyTurn) {
+          bestMoveCoordBadge.textContent = "상대 턴 (비공개)";
+          bestMoveWinRateDisplay.textContent = "숨김";
+          bestMoveWinRateDisplay.style.color = "var(--text-muted)";
+          bestMoveReasonDisplay.textContent = "내 턴이 시작되면 8초 심층 분석이 가동됩니다";
+        } else if (topCandidates.length > 0) {
+          const best = topCandidates[0];
+          bestMoveCoordBadge.textContent = `추천: ${toCoord(best.r, best.c)}`;
+          bestMoveWinRateDisplay.textContent = `${best.winRate.toFixed(1)}%`;
+          bestMoveWinRateDisplay.style.color = "var(--accent-green)";
+          bestMoveReasonDisplay.textContent = best.reason;
+        }
+
+        const bRate = Math.min(99.9, Math.max(0.1, currentBoardBlackWinRate));
+        const wRate = Number((100 - bRate).toFixed(1));
+        winrateBarBlack.style.width = `${bRate}%`;
+        blackOverallRate.textContent = `흑 ${bRate.toFixed(1)}%`;
+        whiteOverallRate.textContent = `백 ${wRate.toFixed(1)}%`;
+
+        if (bRate >= 70) {
+          boardEvalSummary.textContent = `흑돌 우세 (확정 ${completedSearchDepth}수 · 연속 공격 주도권)`;
+        } else if (wRate >= 70) {
+          boardEvalSummary.textContent = `백돌 우세 (확정 ${completedSearchDepth}수 · 방어 및 역습)`;
+        } else {
+          boardEvalSummary.textContent =
+            moveHistory.length < 8
+              ? `오프닝 정석 매핑 + ${completedSearchDepth}수 심층 검증`
+              : `중반 VCT/VCF + ${completedSearchDepth}수 균형 접전`;
+        }
+
+        if (gameOver) {
+          topMovesContainer.innerHTML = `
+            <div class="empty-state-fixed">
+              대국이 종료되었습니다. [무르기] 또는 [초기화]를 눌러 분석을 이어가세요.
+            </div>
+          `;
+        } else if (!isMyTurn) {
+          topMovesSubTag.textContent = "상대 턴 오버레이 숨김";
+          topMovesContainer.innerHTML = `
+            <div class="empty-state-fixed">
+              <div>
+                현재는 상대방(<strong>${currentTurn === BLACK ? "흑" : "백"}</strong>) 착수 차례입니다.<br/>
+                승률 오버레이 및 진행 바는 <strong>내 진영(${myRoleName}) 차례</strong>에만 활성화됩니다.
+              </div>
+            </div>
+          `;
+        } else {
+          topMovesSubTag.textContent = `실시간 ${completedSearchDepth}수 반영 · 클릭 착수`;
+          topMovesContainer.innerHTML = topCandidates
+            .map((item, idx) => {
+              const cStr = toCoord(item.r, item.c);
+              const rateColor =
+                item.winRate >= 80
+                  ? "var(--accent-green)"
+                  : item.winRate >= 60
+                  ? "var(--accent-blue)"
+                  : "var(--accent-amber)";
+              return `
+                <div class="move-row" data-r="${item.r}" data-c="${item.c}">
+                  <div class="move-row-left">
+                    <span class="move-rank ${idx === 0 ? "rank-1" : "rank-other"}">${idx + 1}</span>
+                    <strong>${cStr}</strong>
+                    <span class="move-reason">${item.reason}</span>
+                  </div>
+                  <div class="move-prob" style="color: ${rateColor};">${item.winRate.toFixed(1)}%</div>
+                </div>
+              `;
+            })
+            .join("");
+
+          topMovesContainer.querySelectorAll(".move-row").forEach(row => {
+            row.addEventListener("mouseenter", () => {
+              const r = Number(row.dataset.r);
+              const c = Number(row.dataset.c);
+              hoverPos = { r, c };
+              updateHoverPanel(r, c);
+              renderBoard();
+            });
+            row.addEventListener("click", () => {
+              const r = Number(row.dataset.r);
+              const c = Number(row.dataset.c);
+              handlePlaceStone(r, c);
+            });
+          });
+        }
+
+        if (moveHistory.length === 0) {
+          historyContainer.innerHTML = `
+            <div class="empty-state-fixed">
+              아직 착수된 돌이 없습니다. 바둑판 교차점을 클릭해 대국을 시작하세요.
+            </div>
+          `;
+        } else {
+          historyContainer.innerHTML = [...moveHistory]
+            .reverse()
+            .map(mv => {
+              const cStr = toCoord(mv.r, mv.c);
+              const dotClass = mv.color === BLACK ? "black" : "white";
+              const colorName = mv.color === BLACK ? "흑" : "백";
+              return `
+                <div class="history-item">
+                  <div class="left">
+                    <span style="color: var(--text-muted); width: 28px; flex-shrink: 0;">#${mv.moveNum}</span>
+                    <span class="stone-dot ${dotClass}"></span>
+                    <strong style="flex-shrink: 0;">${colorName} ${cStr}</strong>
+                    <span class="reason-ellipsis">(${mv.reason})</span>
+                  </div>
+                  <span style="font-weight: 700; color: var(--accent-blue); flex-shrink: 0;">${mv.winRate.toFixed(1)}%</span>
+                </div>
+              `;
+            })
+            .join("");
+        }
+
+        if (hoverPos) {
+          updateHoverPanel(hoverPos.r, hoverPos.c);
+        } else if (topCandidates.length > 0) {
+          updateHoverPanel(topCandidates[0].r, topCandidates[0].c);
+        }
+      }
+
+      function updateHoverPanel(r, c) {
+        const info = analysisGrid[r]?.[c];
+        const coordStr = toCoord(r, c);
+        const isMyTurn = currentTurn === userPreferredRole;
+        hoverCoordText.textContent = coordStr;
+
+        if (!info) {
+          hoverPatternText.textContent =
+            board[r][c] !== EMPTY ? "이미 착수된 위치" : "기존 돌 반경 2칸 외곽 (가지치기 제외)";
+          hoverWinrateText.textContent = "-";
+          hoverWinrateText.style.color = "var(--text-muted)";
+          metricSource.textContent = "-";
+          metricBalance.textContent = "-";
+          metricThreats.textContent = "-";
+          metricRenju.textContent = board[r][c] !== EMPTY ? "기착수" : "합법수";
+          pvLineText.textContent = "돌 주변 1~2칸 이내의 핵심 후보점에 마우스를 올리면 수읽기가 표시됩니다.";
+          return;
+        }
+
+        if (info.isForbidden) {
+          hoverPatternText.textContent = `렌주룰 금수 (${info.forbiddenType})`;
+          hoverWinrateText.textContent = "금수(X)";
+          hoverWinrateText.style.color = "var(--accent-red)";
+          metricSource.textContent = "Renju Rule";
+          metricBalance.textContent = "착수 불가";
+          metricThreats.textContent = "-";
+          metricRenju.textContent = info.forbiddenType;
+          metricRenju.style.color = "var(--accent-red)";
+          pvLineText.textContent = `흑돌은 ${info.forbiddenType} 자리에 착수할 수 없습니다.`;
+          return;
+        }
+
+        if (!isMyTurn) {
+          hoverPatternText.textContent = "상대방 차례 (내 턴에만 승률 표시)";
+          hoverWinrateText.textContent = "비공개";
+          hoverWinrateText.style.color = "var(--text-muted)";
+          metricSource.textContent = "대기 중";
+          metricBalance.textContent = "상대 차례";
+          metricThreats.textContent = "-";
+          metricRenju.textContent = currentTurn === BLACK ? "합법수" : "무제약(백)";
+          metricRenju.style.color = "var(--accent-green)";
+          pvLineText.textContent = "상대방이 착수를 마치면 내 진영의 8초 심층 분석과 승률 오버레이가 시작됩니다.";
+          return;
+        }
+
+        hoverPatternText.textContent = info.reason;
+        hoverWinrateText.textContent = `${info.winRate.toFixed(1)}%`;
+        hoverWinrateText.style.color =
+          info.winRate >= 80
+            ? "var(--accent-green)"
+            : info.winRate >= 60
+            ? "var(--accent-blue)"
+            : info.winRate >= 30
+            ? "var(--accent-amber)"
+            : "var(--accent-red)";
+
+        metricSource.textContent = info.source;
+        metricBalance.textContent = info.balanceLabel;
+        metricThreats.textContent = `열린3: ${info.openThrees} / 4: ${info.fours}`;
+        metricRenju.textContent = currentTurn === BLACK ? "합법수" : "무제약(백)";
+        metricRenju.style.color = "var(--accent-green)";
+        pvLineText.textContent = `예상 수순(PV): ${info.pvLine.join(" → ")}`;
+      }
+
+      // =========================================================================
+      // 9. 착수, 무르기, 초기화 및 정밀 상대 좌표 오프셋 계산
+      // =========================================================================
+      function handlePlaceStone(r, c) {
+        if (gameOver) {
+          showToast("이미 종료된 대국입니다. [무르기] 또는 [초기화]를 눌러주세요.");
+          return;
+        }
+        if (!inBounds(r, c) || board[r][c] !== EMPTY) return;
+
+        if (currentTurn === BLACK) {
+          const forb = analysisGrid[r]?.[c]?.isForbidden
+            ? { isForbidden: true, type: analysisGrid[r][c].forbiddenType }
+            : checkForbiddenMove(board, r, c);
+          if (forb.isForbidden) {
+            showToast(`🚫 [${toCoord(r, c)}] 자리는 흑의 '${forb.type}' 자리이므로 둘 수 없습니다!`);
+            return;
+          }
+        }
+
+        stopActiveSearch();
+        resetAndDisableProgressBar("착수 완료 · 프로그레스 바 리셋");
+
+        const info = analysisGrid[r]?.[c];
+        const moveWinRate = info ? info.winRate : 45.0;
+        const moveReason = info ? info.reason : "자유 포석";
+
+        board[r][c] = currentTurn;
+        moveHistory.push({
+          r,
+          c,
+          color: currentTurn,
+          moveNum: moveHistory.length + 1,
+          winRate: moveWinRate,
+          reason: moveReason
+        });
+
+        const winLine = checkWin(board, r, c, currentTurn);
+        if (winLine) {
+          gameOver = true;
+          winningLine = winLine;
+          currentBoardBlackWinRate = currentTurn === BLACK ? 100.0 : 0.0;
+
+          const winnerName = currentTurn === BLACK ? "흑돌 (Black)" : "백돌 (White)";
+          const winDetail =
+            currentTurn === BLACK
+              ? "렌주룰에 따라 정확히 5목을 완성하여 승리했습니다!"
+              : `${winLine.length}목(${winLine.length === 5 ? "정확히 5목" : "장목 포함"})을 완성하여 승리했습니다!`;
+
+          modalTitle.textContent = `${winnerName} 승리!`;
+          modalDesc.textContent = `[${toCoord(r, c)}] 착수로 ${winDetail} (총 ${moveHistory.length}수)`;
+          winModal.classList.add("open");
+
+          resetAndDisableProgressBar("대국 종료 (승리 확정)");
+          updateUI();
+          renderBoard();
+          return;
+        }
+
+        if (moveHistory.length === BOARD_SIZE * BOARD_SIZE) {
+          gameOver = true;
+          modalTitle.textContent = "무승부 (만판)";
+          modalDesc.textContent = "225개의 모든 교차점에 돌이 놓여 무승부로 종료되었습니다.";
+          winModal.classList.add("open");
+          resetAndDisableProgressBar("대국 종료 (무승부)");
+          updateUI();
+          renderBoard();
+          return;
+        }
+
+        currentTurn = currentTurn === BLACK ? WHITE : BLACK;
+        runEvaluationPipeline();
+      }
+
+      function handleUndo() {
+        if (moveHistory.length === 0) return;
+        stopActiveSearch();
+        const last = moveHistory.pop();
+        board[last.r][last.c] = EMPTY;
+        currentTurn = last.color;
+        gameOver = false;
+        winningLine = null;
+        winModal.classList.remove("open");
+
+        runEvaluationPipeline();
+      }
+
+      function handleReset() {
+        stopActiveSearch();
+        board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY));
+        currentTurn = BLACK;
+        moveHistory = [];
+        gameOver = false;
+        winningLine = null;
+        hoverPos = null;
+        winModal.classList.remove("open");
+
+        runEvaluationPipeline();
+      }
+
+      /**
+       * getBoundingClientRect() 및 렌더링과 동일한 getBoardMetrics()를 사용하여
+       * 스크롤, 브라우저 줌, 고정/모바일 레이아웃 어디서든 1px 오차 없이 교차점을 산출합니다.
+       */
+      function getBoardCoordFromEvent(e) {
+        const { rect, padding, cellSize } = getBoardMetrics();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const c = Math.round((x - padding) / cellSize);
+        const r = Math.round((y - padding) / cellSize);
+
+        if (!inBounds(r, c)) return null;
+
+        const cx = padding + c * cellSize;
+        const cy = padding + r * cellSize;
+        if (Math.hypot(x - cx, y - cy) > cellSize * 0.48) return null;
+
+        return { r, c };
+      }
+
+      canvas.addEventListener("mousemove", e => {
+        const pos = getBoardCoordFromEvent(e);
+        const changed =
+          (pos === null && hoverPos !== null) ||
+          (pos !== null && (!hoverPos || pos.r !== hoverPos.r || pos.c !== hoverPos.c));
+
+        if (changed) {
+          hoverPos = pos;
+          if (hoverPos) {
+            updateHoverPanel(hoverPos.r, hoverPos.c);
+          }
+          renderBoard();
+        }
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        hoverPos = null;
+        renderBoard();
+      });
+
+      canvas.addEventListener("click", e => {
+        const pos = getBoardCoordFromEvent(e);
+        if (!pos) return;
+        handlePlaceStone(pos.r, pos.c);
+      });
+
+      roleBlackBtn.addEventListener("click", () => {
+        if (userPreferredRole === BLACK) return;
+        userPreferredRole = BLACK;
+        roleBlackBtn.classList.add("active");
+        roleWhiteBtn.classList.remove("active");
+        runEvaluationPipeline();
+      });
+
+      roleWhiteBtn.addEventListener("click", () => {
+        if (userPreferredRole === WHITE) return;
+        userPreferredRole = WHITE;
+        roleWhiteBtn.classList.add("active");
+        roleBlackBtn.classList.remove("active");
+        runEvaluationPipeline();
+      });
+
+      toggleOverlayBtn.addEventListener("click", () => {
+        showOverlay = !showOverlay;
+        toggleOverlayBtn.classList.toggle("toggle-active", showOverlay);
+        toggleOverlayBtn.innerHTML = `<span>📊 내 턴 오버레이: ${showOverlay ? "켜짐" : "꺼짐"}</span>`;
+        renderBoard();
+      });
+
+      toggleIndexBtn.addEventListener("click", () => {
+        showMoveNumbers = !showMoveNumbers;
+        toggleIndexBtn.classList.toggle("toggle-active", showMoveNumbers);
+        toggleIndexBtn.innerHTML = `<span>🔢 수순 번호: ${showMoveNumbers ? "켜짐" : "꺼짐"}</span>`;
+        renderBoard();
+      });
+
+      undoBtn.addEventListener("click", handleUndo);
+      resetBtn.addEventListener("click", handleReset);
+
+      modalCloseBtn.addEventListener("click", () => {
+        winModal.classList.remove("open");
+      });
+      modalResetBtn.addEventListener("click", handleReset);
+
+      window.addEventListener("resize", () => {
+        renderBoard();
+      });
+
+      // 초기 실행
+      runEvaluationPipeline();
+    })();
+  </script>
+</body>
+</html>
